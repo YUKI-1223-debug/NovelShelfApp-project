@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 
@@ -141,6 +142,11 @@ export default function SettingsPage() {
               </SegButton>
             </div>
           </Row>
+
+          <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">ヘルプ</p>
+          <Link href="/settings/guide" className="border-b border-border px-4 py-3 text-sm">
+            使い方ガイド
+          </Link>
 
           <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">アカウント</p>
           <button onClick={logout} className="px-4 py-3 text-left text-sm text-update">
