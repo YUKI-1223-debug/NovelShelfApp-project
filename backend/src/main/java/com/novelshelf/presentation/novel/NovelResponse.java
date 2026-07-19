@@ -9,6 +9,7 @@ public record NovelResponse(
         String title,
         String author,
         SiteCode site,
+        boolean siteSupported,
         String genre,
         String coverUrl,
         String sourceUrl,

@@ -38,6 +38,15 @@ public class NovelController {
         return mapper.toDetailResponse(novelQueryService.getById(novelId), userId);
     }
 
+    public record UpdateTitleRequest(@NotBlank String title) {}
+
+    @PatchMapping("/novels/{novelId}")
+    public NovelDetailResponse updateTitle(
+            @PathVariable UUID novelId, @Valid @RequestBody UpdateTitleRequest request, @AuthenticationPrincipal UUID userId) {
+        Novel novel = novelQueryService.updateTitle(novelId, request.title());
+        return mapper.toDetailResponse(novel, userId);
+    }
+
     @GetMapping("/novels/{novelId}/chapters")
     public List<ChapterResponse> chapters(@PathVariable UUID novelId) {
         return novelQueryService.getChapters(novelId).stream().map(ChapterResponse::from).toList();

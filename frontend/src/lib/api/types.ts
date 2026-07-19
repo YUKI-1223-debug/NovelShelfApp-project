@@ -23,6 +23,7 @@ export interface Novel {
   title: string;
   author: string;
   site: SiteCode | null;
+  siteSupported: boolean;
   genre: string | null;
   coverUrl: string | null;
   sourceUrl: string;

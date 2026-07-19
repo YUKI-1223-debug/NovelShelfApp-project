@@ -26,13 +26,16 @@ public class NovelResponseMapper {
     public NovelResponse toResponse(Novel novel, UUID userId) {
         String authorName =
                 authorRepository.findById(novel.getAuthorId()).map(Author::getName).orElse("不明");
-        var site = siteRepository.findById(novel.getSiteId()).map(Site::getCode).orElse(null);
+        var siteEntity = siteRepository.findById(novel.getSiteId()).orElse(null);
+        var site = siteEntity != null ? siteEntity.getCode() : null;
+        boolean siteSupported = siteEntity != null && siteEntity.isSupported();
         boolean hasUpdate = updateChecker.hasUpdate(userId, novel);
         return new NovelResponse(
                 novel.getId(),
                 novel.getTitle(),
                 authorName,
                 site,
+                siteSupported,
                 novel.getGenre(),
                 novel.getCoverUrl(),
                 novel.getSourceUrl(),

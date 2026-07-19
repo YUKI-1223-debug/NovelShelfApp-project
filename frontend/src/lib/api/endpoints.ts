@@ -36,6 +36,8 @@ export const sitesApi = {
 export const novelsApi = {
   resolve: (url: string) => apiFetch<NovelDetail>("/novels/resolve", { method: "POST", body: { url } }),
   detail: (novelId: string) => apiFetch<NovelDetail>(`/novels/${novelId}`),
+  updateTitle: (novelId: string, title: string) =>
+    apiFetch<NovelDetail>(`/novels/${novelId}`, { method: "PATCH", body: { title } }),
   chapters: (novelId: string) => apiFetch<Chapter[]>(`/novels/${novelId}/chapters`),
   content: (chapterId: string) => apiFetch<ChapterContent>(`/chapters/${chapterId}/content`),
   downloadAll: (novelId: string) => apiFetch<ChapterWithContent[]>(`/novels/${novelId}/download`, { method: "POST" }),

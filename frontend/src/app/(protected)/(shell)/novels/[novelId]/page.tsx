@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
-import { ChevronLeftIcon } from "@/components/icons";
+import { ChevronLeftIcon, PencilIcon } from "@/components/icons";
 import {
   ApiError,
   novelsApi,
@@ -36,6 +36,9 @@ export default function NovelDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -82,6 +85,26 @@ export default function NovelDetailPage() {
     setShelfEntry(null);
   }
 
+  function startEditingTitle() {
+    setTitleDraft(novel?.title ?? "");
+    setEditingTitle(true);
+  }
+
+  async function saveTitle() {
+    const title = titleDraft.trim();
+    if (!title || !novel) return;
+    setSavingTitle(true);
+    try {
+      const updated = await novelsApi.updateTitle(novel.id, title);
+      setNovel(updated);
+      setEditingTitle(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "タイトルの更新に失敗しました。");
+    } finally {
+      setSavingTitle(false);
+    }
+  }
+
   async function downloadAll() {
     setDownloading(true);
     setDownloadMessage(null);
@@ -123,7 +146,38 @@ export default function NovelDetailPage() {
       <div className="flex gap-4">
         <BookCover novelId={novel.id} title={novel.title} className="w-28 shrink-0" />
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-lg font-bold leading-snug">{novel.title}</h1>
+          {editingTitle ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+              />
+              <button
+                onClick={saveTitle}
+                disabled={savingTitle}
+                className="shrink-0 rounded-lg bg-accent px-2 py-1 text-xs font-semibold text-accent-foreground disabled:opacity-50"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => setEditingTitle(false)}
+                className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-bold leading-snug">{novel.title}</h1>
+              {!novel.siteSupported && (
+                <button onClick={startEditingTitle} aria-label="タイトルを編集" className="shrink-0 text-muted">
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           <Link href={`/authors/${encodeURIComponent(novel.author)}`} className="text-sm text-accent-soft underline underline-offset-2">
             {novel.author}
           </Link>
@@ -176,7 +230,7 @@ export default function NovelDetailPage() {
           </button>
         )}
 
-        {novel.site && (
+        {novel.siteSupported && (
           <div className="flex flex-col gap-1">
             <button
               onClick={downloadAll}

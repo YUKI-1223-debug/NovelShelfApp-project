@@ -44,6 +44,17 @@ public class NovelQueryService {
         return novelRepository.findById(novelId).orElseThrow(() -> new NotFoundException("作品が見つかりません: " + novelId));
     }
 
+    /**
+     * 作品タイトルの手動編集。主にリンクのみ登録（本文取得未対応サイト）でURLがそのままタイトルに
+     * なっている作品を、ユーザーが分かりやすい表示に直すための機能（docs/DECISIONS.md参照）。
+     */
+    @Transactional
+    public Novel updateTitle(UUID novelId, String title) {
+        Novel novel = getById(novelId);
+        novel.setTitle(title);
+        return novelRepository.save(novel);
+    }
+
     public List<Novel> search(String q, SiteCode siteCode, String genre, String tagName, UUID userId) {
         UUID siteId = siteCode != null
                 ? siteRepository.findByCode(siteCode).map(Site::getId).orElse(null)

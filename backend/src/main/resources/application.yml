@@ -41,6 +41,12 @@ novelshelf:
     # ノクターン/ムーンライト/ミッドナイトノベルズ(R18)向け。参照: docs/DECISIONS.md
     r18-api-base-url: ${NAROU_R18_API_BASE_URL:https://api.syosetu.com/novel18api/api/}
     r18-site-base-url: ${NAROU_R18_SITE_BASE_URL:https://novel18.syosetu.com}
+  kakuyomu:
+    site-base-url: ${KAKUYOMU_SITE_BASE_URL:https://kakuyomu.jp}
+    request-interval-ms: ${KAKUYOMU_REQUEST_INTERVAL_MS:1000}
+  hameln:
+    site-base-url: ${HAMELN_SITE_BASE_URL:https://syosetu.org}
+    request-interval-ms: ${HAMELN_REQUEST_INTERVAL_MS:1000}
   cors:
     # 本番はCORS_ALLOWED_ORIGINSにカンマ区切りで実際のオリジン(例: https://novelshelf.jp)を指定する
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

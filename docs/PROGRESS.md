@@ -8,6 +8,16 @@
 
 未対応: `www.novelshelf.jp`（`nginx.conf`の`server_name`が`novelshelf.jp`固定のため、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。次のアクションは[NEXT_TASK.md](NEXT_TASK.md)参照。
 
+## 完了した作業（対応サイト拡大: カクヨム・ハーメルン、2026-07-19）
+
+ユーザー依頼により、カクヨム・ハーメルンのrobots.txt/利用規約を調査した上で`KakuyomuAdapter`・`HamelnAdapter`を実装した。pixiv小説は明確な禁止規定があるため実装しないことをユーザーと合意（調査内容・判断根拠は[DECISIONS.md](DECISIONS.md)参照）。
+
+- **KakuyomuAdapter**: 公式APIがないため、作品ページに埋め込まれたNext.jsの`__NEXT_DATA__`（Apollo正規化キャッシュ）から構造化データを取得。話一覧はページング制約なく1リクエストで全件取得できる（なろうより堅牢）。話本文ページのみ従来型HTMLで`widget-episodeBody`クラスをスクレイピング。
+- **HamelnAdapter**: schema.orgのmicrodata（`itemprop`属性）でタイトル・作者・synopsisを取得。話本文は`id="honbun"`（本文）/`id="maegaki"`（前書き）/`id="atogaki"`（あとがき）が明確に分離されたIDのため、なろうで起きた前書き取り違えのリスクは低い。完結/連載中の判定は安定した取得手段が見つからず、常に`ONGOING`固定（[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。
+- 両アダプタとも実サイト・実作品での疎通テスト（`KakuyomuAdapterLiveTest`/`HamelnAdapterLiveTest`、前書き・あとがき両方がある話を含む）を追加し、実際にブラウザ操作（Playwright）で作品追加→話一覧取得→本文表示まで確認済み。
+- **実装中に発見した既存バグ**: `sites.is_supported`のDBシード値がカクヨム・ハーメルンとも`false`のままだったため、作品追加自体は成功するのに話一覧・本文取得だけ常に空になる不具合があった（`V4__support_kakuyomu_hameln.sql`で修正）。
+- **プレースホルダー作品のタイトル手動編集機能**を追加（`PATCH /novels/{novelId}`、作品詳細画面の鉛筆アイコン）。副次的に、詳細画面の「全話をオフライン保存」ボタンが未対応サイトでも表示されてしまっていた既存バグも同じ修正（新設の`siteSupported`フィールド）で解消。
+
 ## 完了した作業（Phase6中の追加改修、2026-07-19）
 
 ユーザー報告の不具合3件の対応と、オフライン対応の拡張を実施。
@@ -135,6 +145,28 @@ frontend/src/lib/offline/db.ts                                 (新規: IndexedD
 frontend/src/lib/offline/chapterCache.ts                       (更新: db.tsのスキーマを利用するようリファクタ)
 frontend/src/lib/offline/shelfCache.ts                         (新規)
 frontend/src/lib/offline/positionQueue.ts                      (新規)
+
+# 対応サイト拡大（カクヨム・ハーメルン、2026-07-19）
+backend/src/main/java/com/novelshelf/infrastructure/adapter/kakuyomu/KakuyomuAdapter.java    (新規)
+backend/src/main/java/com/novelshelf/infrastructure/adapter/kakuyomu/KakuyomuProperties.java (新規)
+backend/src/main/java/com/novelshelf/infrastructure/adapter/kakuyomu/KakuyomuRateLimiter.java (新規)
+backend/src/main/java/com/novelshelf/infrastructure/adapter/hameln/HamelnAdapter.java        (新規)
+backend/src/main/java/com/novelshelf/infrastructure/adapter/hameln/HamelnProperties.java     (新規)
+backend/src/main/java/com/novelshelf/infrastructure/adapter/hameln/HamelnRateLimiter.java    (新規)
+backend/src/main/resources/application.yml                                                   (更新: novelshelf.kakuyomu/hameln追加)
+backend/src/main/resources/db/migration/V4__support_kakuyomu_hameln.sql                      (新規: is_supportedをtrueに)
+backend/src/test/java/com/novelshelf/infrastructure/adapter/kakuyomu/KakuyomuAdapterLiveTest.java (新規)
+backend/src/test/java/com/novelshelf/infrastructure/adapter/hameln/HamelnAdapterLiveTest.java     (新規)
+backend/src/main/java/com/novelshelf/presentation/novel/NovelController.java      (更新: PATCH /novels/{novelId}追加)
+backend/src/main/java/com/novelshelf/application/novel/NovelQueryService.java     (更新: updateTitle追加)
+backend/src/main/java/com/novelshelf/presentation/novel/NovelResponse.java        (更新: siteSupportedフィールド追加)
+backend/src/main/java/com/novelshelf/presentation/novel/NovelDetailResponse.java  (更新: 同上)
+backend/src/main/java/com/novelshelf/presentation/novel/NovelResponseMapper.java  (更新: siteSupportedの算出)
+frontend/src/lib/api/types.ts                                    (更新: siteSupportedフィールド追加)
+frontend/src/lib/api/endpoints.ts                                (更新: novelsApi.updateTitle追加)
+frontend/src/components/AddNovelDialog.tsx                       (更新: カクヨム/ハーメルン案内、pixiv手動タイトルの案内)
+frontend/src/components/icons.tsx                                (更新: PencilIcon追加)
+frontend/src/app/(protected)/(shell)/novels/[novelId]/page.tsx   (更新: タイトル編集UI、siteSupported利用)
 ```
 
 ## 実装した機能
