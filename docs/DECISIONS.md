@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-07-19（検討中・未着手）: 検索結果ページ→共有シートで本棚に追加する導線
+
+**検討内容**: URLをコピー&ペーストする手間を省くため、各小説サイトの検索ページはブラウザで直接開いてもらい、目的の作品ページでOS標準の共有（シェア）機能からNovelShelfを選ぶと本棚に追加される、という導線をユーザーが提案。
+
+**調査結果**: Web Share Target API（PWA manifestの`share_target`）はAndroid Chrome・Windows版Chrome/Edgeでは対応済みだが、iOS/iPadOS Safariは2026-07時点でも未対応。iPhone/iPadでは代替として、ユーザーが一度だけiOSショートカットアプリで「共有シート入力→`https://novelshelf.jp/share?url=...`を開く」個人用ショートカットを作る運用で同等のことができる（Web Share Target APIとは無関係のiOS標準機能）。設計案: `/share`ページを新規追加（要ログイン、既存の`novelsApi.resolve()`→`shelfApi.add()`をそのまま流用、バックエンド変更不要）＋`manifest.json`に`share_target`追加。
+
+**保留理由**: ユーザーの判断により、カクヨム・ハーメルン・pixiv小説の利用規約確認（[USER_TODO.md](USER_TODO.md)）を先に済ませてから着手するかどうか決めることになった。この機能自体はなろう（対応済みサイト）だけでも動くが、「検索ページを直接開いて回る」体験は4サイト揃って初めて完成するため、規約確認を待つ判断は妥当。
+
+---
+
 ## 2026-07-19: 縦書きリーダーのiPhone/Android横スクロール不具合を`ml-auto`で修正
 
 **決定**: 縦書き表示のコンテナを`flex justify-end`ではなく`flex`+`article`側`ml-auto`に変更し、`overflow-auto`側の親にも`min-h-0`を追加した。
