@@ -17,6 +17,12 @@ const MARGIN_PADDING: Record<string, string> = {
   LARGE: "px-10",
 };
 
+const MARGIN_PX: Record<string, number> = {
+  SMALL: 12,
+  MEDIUM: 24,
+  LARGE: 40,
+};
+
 export default function ReaderPage() {
   const { novelId, chapterId } = useParams<{ novelId: string; chapterId: string }>();
   const router = useRouter();
@@ -32,8 +38,26 @@ export default function ReaderPage() {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [bookmarkScroll, setBookmarkScroll] = useState(0);
   const [fromCache, setFromCache] = useState(false);
+  // ページ送りモード: CSS多段組(columns)で本文を「画面ぴったりの列」に分割し、
+  // scrollLeftを列幅ぶんずつ動かすことでページをめくる。列がscrollWidth方向に増える性質は
+  // 縦書き(vertical-rl)でも横書きでも変わらないことを実機検証済み（docs/DECISIONS.md参照）。
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  // CSS columnsのcolumn-widthは「目安」であり、コンテナ幅が自動(auto)のままだと実際の列幅が
+  // 微妙にずれてページ境界と画面幅が一致しなくなる（文字が両端で半端に見切れる原因になっていた）。
+  // 一度自然なレイアウトでscrollWidthを測り、画面幅の整数倍に切り上げた値をwidthとして明示指定し
+  // 再レイアウトさせることで、ブラウザに列幅を画面幅ちょうどへ強制的に揃え直させる（2パス測定）。
+  const [pinnedWidth, setPinnedWidth] = useState<number | null>(null);
+  // 縦書き+ページ送りの組み合わせは、CSS columnsの列幅計算にどうしても数px単位の実機依存の
+  // 誤差が乗り、ページ境界で文字が視覚的に見切れることがあるのを実機検証で確認した
+  // （横書きは同じ仕組みで問題なし、docs/KNOWN_ISSUES.md参照）。直るまでは縦書き時は
+  // pageMode:PAGINATION設定でも従来のスクロール表示にフォールバックする。
+  const isPaged = settings.pageMode === "PAGINATION" && settings.writingMode === "HORIZONTAL";
+  const marginPx = MARGIN_PX[settings.marginSize] ?? MARGIN_PX.MEDIUM;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
   const bookmarkDialogRef = useRef<HTMLDialogElement>(null);
   const startedAtRef = useRef<number>(0);
   const restoreFractionRef = useRef<number | null>(null);
@@ -58,6 +82,8 @@ export default function ReaderPage() {
       // 話が切り替わったら、イマーシブ表示を毎回既定の非表示状態からやり直す。
       setChromeVisible(false);
       setShowSettings(false);
+      setPageIndex(0);
+      setPinnedWidth(null);
       startedAtRef.current = Date.now();
       // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
       // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
@@ -115,8 +141,12 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId, novelId]);
 
+  // ページ送りモードでは、CSS columnsのピン留め幅が確定するまでscrollWidthが変動するため、
+  // ここで一度スクロール位置を設定してもピン留め後にずれてしまう
+  // （復元後にscrollWidthが変わり、初期ページが1つずれる不具合の原因になっていた）。
+  // 復元処理自体は下の第2パスのuseEffectがrestoreFractionRefを直接見て行う。
   useEffect(() => {
-    if (isLoading || !bodyHtml || restoreFractionRef.current === null) return;
+    if (isPaged || isLoading || !bodyHtml || restoreFractionRef.current === null) return;
     const fraction = restoreFractionRef.current;
     restoreFractionRef.current = null;
     requestAnimationFrame(() => {
@@ -130,7 +160,86 @@ export default function ReaderPage() {
         el.scrollTop = max * fraction;
       }
     });
-  }, [isLoading, bodyHtml, settings.writingMode]);
+  }, [isPaged, isLoading, bodyHtml, settings.writingMode]);
+
+  // ページ送りモード時、ビューポート(スクロール領域)の実サイズをCSS columnsの列幅に使うため測っておく。
+  useEffect(() => {
+    if (!isPaged) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setViewportSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isPaged]);
+
+  // 第1パス: widthを明示指定しない自然なレイアウトでscrollWidthを測り、画面幅の整数倍に
+  // 切り上げた値をpinnedWidthとして確定する（切り上げなので本文が入りきらなくなることはない）。
+  // レイアウト内容に影響する依存値が変わるたびpinnedWidthを一旦nullに戻し、測り直す。
+  useEffect(() => {
+    if (!isPaged || isLoading || !bodyHtml || viewportSize.width === 0) {
+      return;
+    }
+    // Reactのstate更新を介さず直接styleを外し、次のペイントで自然な幅に戻してから測る
+    // （setPinnedWidth(null)をここで同期的に呼ぶとcascading renderの警告対象になるため）。
+    if (articleRef.current) articleRef.current.style.width = "";
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const w = viewportSize.width;
+        const count = Math.max(1, Math.ceil(Math.max(el.scrollWidth, w) / w));
+        setPinnedWidth(count * w);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [isPaged, isLoading, bodyHtml, viewportSize, settings.fontSize, settings.lineHeight, settings.writingMode, settings.marginSize]);
+
+  // 第2パス: pinnedWidthを明示指定して再レイアウトされた後、scrollWidthは画面幅ちょうどの
+  // 整数倍になっているはず（CSS columnsはwidthが明示されると列幅をその幅に厳密に合わせて
+  // 再配分するため、実機検証で確認済み）。ここで初めて総ページ数を確定し、直前のスクロール位置
+  // 復元(上のuseEffect)の後に現在位置を最寄りのページ境界へスナップする。
+  useEffect(() => {
+    if (!isPaged || isLoading || !bodyHtml || viewportSize.width === 0 || pinnedWidth === null) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const w = viewportSize.width;
+        const count = Math.max(1, Math.round(pinnedWidth / w));
+        setPageCount(count);
+        // el.scrollWidthではなくpinnedWidthから求める: ライブDOM値はスクロール位置によって
+        // サブピクセル誤差が乗ることがあり、それがgoToPageでの累積ズレの原因になっていた。
+        const maxScrollLeft = Math.max(0, pinnedWidth - w);
+        let rawIndex;
+        if (restoreFractionRef.current !== null) {
+          // 保存済みの読書位置(0=先頭,1=末尾)からページ番号へ直接変換する。
+          // pinnedWidth確定前のscrollWidthを基準にel.scrollLeftを一度設定してしまうと、
+          // ピン留め後のscrollWidthとズレて初期ページが1つずれてしまうため
+          // （ライブなscrollLeftは経由せず、fractionから直接求める）。
+          rawIndex = restoreFractionRef.current * (count - 1);
+          restoreFractionRef.current = null;
+        } else {
+          // 縦書きは先頭ページが右端(scrollLeft=max)、末尾ページが左端(scrollLeft=0)になる
+          // （なろう等の縦書き連続スクロールと同じ向き。docs/DECISIONS.md参照）。
+          rawIndex = settings.writingMode === "VERTICAL" ? (maxScrollLeft - el.scrollLeft) / w : el.scrollLeft / w;
+        }
+        const current = Math.max(0, Math.min(count - 1, Math.round(rawIndex)));
+        setPageIndex(current);
+        el.scrollLeft = settings.writingMode === "VERTICAL" ? Math.max(0, maxScrollLeft - current * w) : current * w;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [isPaged, isLoading, bodyHtml, viewportSize, pinnedWidth, settings.writingMode]);
 
   const computeScrollFraction = useCallback(() => {
     const el = scrollRef.current;
@@ -179,12 +288,52 @@ export default function ReaderPage() {
     [saveProgress, router, novelId]
   );
 
+  // ページ送りモードでのページ移動。末尾ページより先に進もうとしたら次の話へ、
+  // 先頭ページより前には戻らない（前の話への自動遷移はしない仕様、フッターのボタンを使う）。
+  const goToPage = useCallback(
+    (index: number) => {
+      const el = scrollRef.current;
+      if (!el || viewportSize.width === 0 || pinnedWidth === null) return;
+      if (index < 0) return;
+      if (index >= pageCount) {
+        goTo(nextChapter);
+        return;
+      }
+      const w = viewportSize.width;
+      // el.scrollWidthではなくpinnedWidthから求める（理由はページ数確定処理と同じ、
+      // ライブDOM値のサブピクセル誤差による累積ズレを避けるため）。
+      const maxScrollLeft = Math.max(0, pinnedWidth - w);
+      setPageIndex(index);
+      el.scrollLeft = settings.writingMode === "VERTICAL" ? Math.max(0, maxScrollLeft - index * w) : index * w;
+    },
+    [viewportSize.width, pinnedWidth, pageCount, goTo, nextChapter, settings.writingMode]
+  );
+
+  function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isPaged) {
+      setChromeVisible((v) => !v);
+      setShowSettings(false);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xRatio = (e.clientX - rect.left) / rect.width;
+    if (xRatio < 0.3) {
+      goToPage(pageIndex - 1);
+    } else if (xRatio > 0.7) {
+      goToPage(pageIndex + 1);
+    } else {
+      setChromeVisible((v) => !v);
+      setShowSettings(false);
+    }
+  }
+
   // 本文の最後までスクロールしたあと、さらにスクロールしようとしたら次の話へ自動的に移動する。
   // 「最後に到達した瞬間」ではなく、そこからさらに一定時間スクロール操作が続いた場合のみ発火させることで、
-  // 最終行を読み終えた直後に意図せず次の話へ飛んでしまうのを防ぐ。
+  // 最終行を読み終えた直後に意図せず次の話へ飛んでしまうのを防ぐ。ページ送りモードでは
+  // goToPage側でページ境界を超えた遷移を扱うため、この監視は不要（scrollイベント自体発生しない）。
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !nextChapter) return;
+    if (!el || !nextChapter || isPaged) return;
     let reachedEndAt: number | null = null;
     let advanced = false;
 
@@ -205,25 +354,85 @@ export default function ReaderPage() {
 
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [chapterId, nextChapter, computeScrollFraction, goTo]);
+  }, [chapterId, nextChapter, computeScrollFraction, goTo, isPaged]);
 
   const fontClass = settings.fontFamily === "MINCHO" ? "reader-text-mincho" : "reader-text-gothic";
   const paddingClass = MARGIN_PADDING[settings.marginSize] ?? MARGIN_PADDING.MEDIUM;
+
+  // 縦書きは1行の送り幅がfontSize*lineHeightの整数倍になる性質があり、columnWidthがその
+  // 整数倍ちょうどでないと最後の半端な1行分がページ境界をまたいで隣のページにわずかに
+  // はみ出す（文字が両端で見切れる原因になっていた、実機検証で確認済み）。そのため
+  // columnWidthは行送りピッチの整数倍に切り下げる。
+  //
+  // 重要: columnGapは「画面幅-columnWidth」ではなく「2*実効パディング」でなければならない。
+  // 総ページ幅(=padding*2 + N*columnWidth + (N-1)*columnGap)が画面幅の整数倍(N*画面幅)に
+  // きれいに telescoping するのは、columnGap=2*padding のときに限られる
+  // （columnWidth+columnGap=画面幅は必要条件だが、それだけでは総幅の端数が消えない）。
+  // そのため、columnWidthを行送りピッチの倍数に切り下げた分だけ、逆算した実効パディングを
+  // 少し広げて帳尻を合わせる（ユーザー設定のmarginPxに対して数px程度大きくなるのみ）。
+  const rawColumnWidth = Math.max(1, viewportSize.width - marginPx * 2);
+  const linePitch = settings.fontSize * settings.lineHeight;
+  const columnWidth =
+    settings.writingMode === "VERTICAL"
+      ? Math.max(linePitch, Math.floor(rawColumnWidth / linePitch) * linePitch)
+      : rawColumnWidth;
+  const columnGap = viewportSize.width - columnWidth;
+  const effectivePadding = columnGap / 2;
+  // columnWidthだけを指定した場合、明示widthで総幅をピン留めしても列単位では
+  // ブラウザが「最適化」のため実際の列幅を微妙に再配分することがあり、総幅は一致しても
+  // 個々のページ境界が数px単位でずれる（実機検証で確認済み、文字が両端で見切れる原因）。
+  // columnCountも同時に明示することで列数と列幅の関係を一意に固定し、再配分の余地を無くす。
+  const columnCount = pinnedWidth !== null && viewportSize.width > 0 ? Math.round(pinnedWidth / viewportSize.width) : undefined;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background">
       <div
         ref={scrollRef}
-        onClick={() => {
-          setChromeVisible((v) => !v);
-          setShowSettings(false);
-        }}
-        className={`absolute inset-0 overflow-auto ${paddingClass} py-6`}
+        onClick={handleContentClick}
+        className={
+          isPaged ? "absolute inset-0 overflow-hidden" : `absolute inset-0 overflow-auto ${paddingClass} py-6`
+        }
       >
         {isLoading ? (
           <p className="text-center text-sm text-muted">読み込み中...</p>
         ) : error ? (
           <p className="text-center text-sm text-update">{error}</p>
+        ) : isPaged ? (
+          viewportSize.width > 0 && (
+            // ページ送りモード: CSS多段組(columns)で本文を画面幅ぴったりの列に分割する。
+            // columnWidth+columnGap=画面幅になるようにし、コンテナのpadding-left/rightに
+            // marginPxを設定することで、どのページを表示しても両端に余白ができる
+            // （列と列の間の隙間が前後のページの余白に見える、という仕掛け）。
+            // 縦書き(vertical-rl)でも列はscrollWidth方向（x軸）に増えるため同じCSSで成立する
+            // （goToPage/スナップ処理側でスクロール方向のみ縦書き用に反転している）。
+            <article
+              ref={articleRef}
+              className={`${settings.writingMode === "VERTICAL" ? "writing-vertical" : ""} ${fontClass}`}
+              style={{
+                fontSize: settings.fontSize,
+                lineHeight: settings.lineHeight,
+                columnWidth,
+                columnCount,
+                columnGap,
+                // column-fillの既定値balanceは列の高さを均等化しようと詰め方を調整するため、
+                // 列幅=画面幅という前提が崩れてページ境界がずれる（文字の食い違いの原因になっていた）。
+                // autoにして各列を先頭から順に高さいっぱいまで詰めさせることで、列幅を厳密に一定に保つ。
+                columnFill: "auto",
+                height: viewportSize.height,
+                // pinnedWidthが決まるまでは自然な幅(auto)でレイアウトさせ、そこから求めた
+                // 画面幅ちょうどの整数倍を明示widthとして指定し直すことで列幅を強制的に揃える。
+                width: pinnedWidth ?? undefined,
+                boxSizing: "border-box",
+                paddingLeft: effectivePadding,
+                paddingRight: effectivePadding,
+                paddingTop: 24,
+                paddingBottom: 24,
+              }}
+            >
+              <h1 className="mb-4 text-base font-bold">{title}</h1>
+              <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            </article>
+          )
         ) : (
           <div className={settings.writingMode === "VERTICAL" ? "flex h-full" : "mx-auto max-w-2xl"}>
             {/* justify-endではなくml-autoで右寄せする: はみ出た内容がjustify-content側の
@@ -326,6 +535,11 @@ export default function ReaderPage() {
         >
           次の話 <ChevronRightIcon className="h-4 w-4" />
         </button>
+        {isPaged && (
+          <span className="text-xs text-muted">
+            {pageIndex + 1} / {pageCount}
+          </span>
+        )}
         <button
           onClick={() => goTo(prevChapter)}
           disabled={!prevChapter}

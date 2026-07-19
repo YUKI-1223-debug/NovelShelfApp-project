@@ -8,6 +8,13 @@
 
 未対応: `www.novelshelf.jp`（`nginx.conf`の`server_name`が`novelshelf.jp`固定のため、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。次のアクションは[NEXT_TASK.md](NEXT_TASK.md)参照。
 
+## 完了した作業（読書画面イマーシブ表示のタップ切替・ブラウザ拡張機能・ページ送り(横書きのみ)、2026-07-19）
+
+- 読書画面: 本文タップでヘッダー/フッター（イマーシブ表示）を表示/非表示するトグル処理を、ページ送りモードのタップ判定（左右タップ=前後ページ、中央タップ=表示切替）と統合。
+- **ブラウザ拡張機能（`browser-extension/`, Manifest V3, PC専用）を新規実装**: なろう（R18含む）・カクヨム・ハーメルンの作品ページに「本棚に追加」ボタンを注入するcontent script、CORS制約のためAPI呼び出しは全てservice worker（`background.js`）側で行う設計。ログイン用ポップアップ、トークン自動リフレッシュも実装。PlaywrightでのUIレベル自動テストはこのサンドボックス環境で拡張機能の読み込み自体ができず（`headless:false`がハング、`--headless=new`はservice workerが登録されない）断念し、代わりにNode上で`chrome`グローバルをモックして`background.js`を直接評価するテストでログイン・トークンリフレッシュ・本棚追加ロジックを検証済み。実機での動作確認・インストール手順は`browser-extension/README.md`参照、ユーザーによる手動確認が必要。
+- **読書画面のページ送り(pagination)モードを実装、ただし横書きのみ**。CSS多段組(`columns`)＋2パス幅測定でページ境界を画面幅ちょうどに揃える方式。縦書きは複数の対策を試しても文字が視覚的に見切れる不具合が解消しなかったため、`pageMode: PAGINATION`設定でも縦書き時は自動的に従来のスクロール表示にフォールバックする。詳細・試した対策一覧は[DECISIONS.md](DECISIONS.md)参照。
+- Playwrightで横書きページ送りの複数ページ・複数余白設定を自動検証（文字ごとの`getClientRects()`でページ境界の見切れを検出するチェックを実装、全てクリーン）。縦書きのフォールバック動作も確認済み。
+
 ## 完了した作業（本棚リスト表示・読書画面イマーシブ化、2026-07-19）
 
 実機確認後のユーザーフィードバックに基づく。詳細は[DECISIONS.md](DECISIONS.md)参照。

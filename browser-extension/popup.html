@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NovelShelf</title>
+    <style>
+      body {
+        width: 260px;
+        padding: 16px;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+        font-size: 13px;
+        color: #221f1b;
+        background: #f0ece2;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: #8b8377;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd6c7;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #f7f4ec;
+        color: #221f1b;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        background: #2b3a55;
+        color: #f7f4ec;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        min-height: 1em;
+      }
+      #status.error {
+        color: #a13d2b;
+      }
+      #loggedIn {
+        display: none;
+      }
+      #loggedIn p {
+        line-height: 1.5;
+        color: #4a463f;
+      }
+      #logoutBtn {
+        margin-top: 8px;
+        background: transparent;
+        color: #a13d2b;
+        border: 1px solid #a13d2b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>NovelShelf</h1>
+    <div id="loginForm">
+      <label for="email">メールアドレス</label>
+      <input id="email" type="email" autocomplete="email" />
+      <label for="password">パスワード</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <button id="loginBtn">ログイン</button>
+      <p id="status"></p>
+    </div>
+    <div id="loggedIn">
+      <p>ログイン済みです。なろう・カクヨム・ハーメルンの作品ページを開くと、右下に「本棚に追加」ボタンが表示されます。</p>
+      <button id="logoutBtn">ログアウト</button>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
