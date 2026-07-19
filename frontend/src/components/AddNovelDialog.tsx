@@ -21,6 +21,7 @@ const SEARCH_LINKS = [
   { label: "ミッドナイト", url: "https://mid.syosetu.com/search/" },
   { label: "カクヨム", url: "https://kakuyomu.jp/search" },
   { label: "ハーメルン", url: "https://syosetu.org/search/" },
+  { label: "ハーメルン(R18)", url: "https://h.syosetu.org/search/" },
 ];
 
 export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>(function AddNovelDialog(
@@ -91,7 +92,7 @@ export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>
         <div>
           <h2 className="text-base font-bold">作品を追加</h2>
           <p className="mt-1 text-xs text-muted">
-            なろう（ncode.syosetu.com、R18のnovel18.syosetu.comも可）・カクヨム（kakuyomu.jp）・ハーメルン（syosetu.org）のURLは作品情報を取得します。pixiv小説等その他のサイトはリンクのみ登録されます（あとでタイトルを編集できます）。
+            なろう（ncode.syosetu.com、R18のnovel18.syosetu.comも可）・カクヨム（kakuyomu.jp）・ハーメルン（syosetu.org、R18のh.syosetu.orgも可）のURLは作品情報を取得します。pixiv小説等その他のサイトはリンクのみ登録されます（あとでタイトルを編集できます）。
           </p>
         </div>
         <div>

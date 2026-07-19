@@ -30,14 +30,20 @@ import org.springframework.stereotype.Component;
  *
  * <p>完結/連載中の判定は作品トップページから安定して取得できる手段が見つからなかったため、
  * 常に{@link NovelStatus#ONGOING}として登録する（docs/KNOWN_ISSUES.md参照）。
+ *
+ * <p>R18作品は別サブドメイン（{@code h.syosetu.org}）で提供されており、通常版とは別サイトとして
+ * 扱う必要がある（なろうのnovel18.syosetu.comと同様の構成。docs/DECISIONS.md参照）。externalNovelIdは
+ * 通常サイトと衝突しないよう{@code "r18:" + novelId}の形式で保存する。
  */
 @Component
 public class HamelnAdapter implements NovelSiteAdapter {
 
     private static final Pattern NOVEL_ID_PATTERN = Pattern.compile("syosetu\\.org/novel/(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern R18_HOST_PATTERN = Pattern.compile("(^|//)h\\.syosetu\\.org", Pattern.CASE_INSENSITIVE);
     private static final Pattern USER_ID_PATTERN = Pattern.compile("/user/(\\d+)");
     private static final Pattern EPISODE_HREF_PATTERN = Pattern.compile("^\\./?(\\d+)\\.html$");
     private static final String USER_AGENT = "NovelShelfApp/0.1 (personal-use reading app; +https://github.com/)";
+    private static final String R18_ID_PREFIX = "r18:";
 
     private final HamelnProperties properties;
     private final HamelnRateLimiter rateLimiter;
@@ -65,10 +71,28 @@ public class HamelnAdapter implements NovelSiteAdapter {
         return matcher.group(1);
     }
 
+    private static boolean isR18Url(String url) {
+        return R18_HOST_PATTERN.matcher(url).find();
+    }
+
+    private boolean isR18ExternalId(String externalNovelId) {
+        return externalNovelId.startsWith(R18_ID_PREFIX);
+    }
+
+    private String rawNovelId(String externalNovelId) {
+        return isR18ExternalId(externalNovelId) ? externalNovelId.substring(R18_ID_PREFIX.length()) : externalNovelId;
+    }
+
+    private String siteBaseUrlFor(boolean r18) {
+        return r18 ? properties.r18SiteBaseUrl() : properties.siteBaseUrl();
+    }
+
     @Override
     public ExternalNovelMetadata resolveNovel(String url) {
+        boolean r18 = isR18Url(url);
         String novelId = extractNovelId(url);
-        String topUrl = properties.siteBaseUrl() + "/novel/" + novelId + "/";
+        String siteBaseUrl = siteBaseUrlFor(r18);
+        String topUrl = siteBaseUrl + "/novel/" + novelId + "/";
         Document doc = fetchHtml(topUrl);
 
         Element titleEl = doc.selectFirst("[itemprop=name]");
@@ -83,10 +107,10 @@ public class HamelnAdapter implements NovelSiteAdapter {
         Element descriptionEl = doc.selectFirst("meta[property=og:description]");
         String synopsis = descriptionEl != null ? descriptionEl.attr("content") : "";
 
-        List<ExternalChapter> chapters = parseChapterList(doc);
+        List<ExternalChapter> chapters = parseChapterList(doc, siteBaseUrl, novelId);
 
         return new ExternalNovelMetadata(
-                novelId,
+                r18 ? R18_ID_PREFIX + novelId : novelId,
                 titleEl.text().trim(),
                 authorId,
                 authorLinkEl.text().trim(),
@@ -100,12 +124,14 @@ public class HamelnAdapter implements NovelSiteAdapter {
 
     @Override
     public List<ExternalChapter> fetchChapterList(String externalNovelId) {
-        Document doc = fetchHtml(properties.siteBaseUrl() + "/novel/" + externalNovelId + "/");
-        return parseChapterList(doc);
+        boolean r18 = isR18ExternalId(externalNovelId);
+        String novelId = rawNovelId(externalNovelId);
+        String siteBaseUrl = siteBaseUrlFor(r18);
+        Document doc = fetchHtml(siteBaseUrl + "/novel/" + novelId + "/");
+        return parseChapterList(doc, siteBaseUrl, novelId);
     }
 
-    private List<ExternalChapter> parseChapterList(Document doc) {
-        String novelId = extractNovelIdFromDoc(doc);
+    private List<ExternalChapter> parseChapterList(Document doc, String siteBaseUrl, String novelId) {
         List<ExternalChapter> chapters = new ArrayList<>();
         for (Element row : doc.select("tr:has(a[href])")) {
             Element link = row.selectFirst("a[href]");
@@ -123,24 +149,17 @@ public class HamelnAdapter implements NovelSiteAdapter {
                     String.valueOf(chapterNo),
                     chapterNo,
                     link.text().trim(),
-                    properties.siteBaseUrl() + "/novel/" + novelId + "/" + chapterNo + ".html",
+                    siteBaseUrl + "/novel/" + novelId + "/" + chapterNo + ".html",
                     publishedAt));
         }
         chapters.sort((a, b) -> Integer.compare(a.chapterNo(), b.chapterNo()));
         return chapters;
     }
 
-    private String extractNovelIdFromDoc(Document doc) {
-        Element canonical = doc.selectFirst("meta[property=og:url]");
-        if (canonical != null) {
-            return extractNovelId(canonical.attr("content"));
-        }
-        return extractNovelId(doc.location());
-    }
-
     @Override
     public ExternalChapterContent fetchChapterContent(String externalNovelId, String externalChapterId) {
-        String episodeUrl = properties.siteBaseUrl() + "/novel/" + externalNovelId + "/" + externalChapterId + ".html";
+        String siteBaseUrl = siteBaseUrlFor(isR18ExternalId(externalNovelId));
+        String episodeUrl = siteBaseUrl + "/novel/" + rawNovelId(externalNovelId) + "/" + externalChapterId + ".html";
         Document doc = fetchHtml(episodeUrl);
 
         Element bodyEl = doc.selectFirst("div#honbun");
@@ -161,7 +180,10 @@ public class HamelnAdapter implements NovelSiteAdapter {
     private Document fetchHtml(String url) {
         rateLimiter.throttle();
         try {
-            return Jsoup.connect(url).userAgent(USER_AGENT).timeout(10_000).get();
+            // over18=offクッキーはR18サイト(h.syosetu.org)の年齢確認ページ回避に必要
+            // （実機確認済み、値は"off"で年齢確認を求めない状態を表す模様）。
+            // 通常サイト側では単に無視されるだけなので、常に付与して分岐を避けている。
+            return Jsoup.connect(url).userAgent(USER_AGENT).cookie("over18", "off").timeout(10_000).get();
         } catch (java.io.IOException e) {
             throw new UnresolvableNovelUrlException(url);
         }

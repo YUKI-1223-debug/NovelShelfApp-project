@@ -23,6 +23,72 @@ const MARGIN_PX: Record<string, number> = {
   LARGE: 40,
 };
 
+// 縦書き+ページ送りでは、CSS columns側の列幅計算(columnWidth/columnGap)をJS側で事前に
+// 予測してscrollLeftを算出する方式だと、ブラウザの内部レイアウト計算との間で数px単位の
+// ズレが生じ、ページ境界の文字が視覚的に見切れることがあった（実機検証で確認、
+// docs/DECISIONS.mdの2026-07-19エントリ参照）。そのため縦書きでは「予測」をやめ、
+// 実際にレンダリングされた各行の絶対x座標を直接測定し、行と行の間の実際の空白（＝本当に
+// 何も描画されていない領域）の中央にページ境界(scrollLeft)を置く方式にする。
+// 空白の中央である以上、多少の測定誤差があっても文字を切ることはない。
+function measureLineStartXs(articleEl: HTMLElement, scrollLeft: number): number[] {
+  const xs = new Set<number>();
+  const walker = document.createTreeWalker(articleEl, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent ?? "";
+    for (let i = 0; i < text.length; i++) {
+      if (/\s/.test(text[i])) continue;
+      const range = document.createRange();
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      for (const r of range.getClientRects()) {
+        if (r.width === 0 || r.height === 0) continue;
+        // 同じ行内の文字は縦書きでは同一x（サブピクセル単位でほぼ一致）を共有するため、
+        // 四捨五入して丸めることで同一行の文字を確実に同じ値へ集約する。
+        xs.add(Math.round(r.left + scrollLeft));
+      }
+    }
+  }
+  // <p><br></p>のような空行（テキストノードを持たない）はテキストのスキャンだけでは
+  // 検出できず、そこを本文中の隙間と誤認してページ境界を誤検出する原因になっていた
+  // （実機検証で確認済み）。空行も1行分のスロットを占めるため、その位置も加える。
+  for (const el of articleEl.querySelectorAll("p")) {
+    if ((el.textContent ?? "").trim() !== "") continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    xs.add(Math.round(r.left + scrollLeft));
+  }
+  return [...xs].sort((a, b) => b - a); // 降順 = 読み順（右から左）
+}
+
+// ページ(CSS多段組の列)境界を「行の間隔が明らかに広い場所」として実測値から直接検出する。
+// 事前に「1ページ何行」と決め打ちしない: 決め打ちした行数がブラウザの実際のレイアウトと
+// 1行でもズレると、境界が本文の途中に来てしまい文字が見切れる（実機検証で確認済み）。
+// 通常の行間(同じ列内)より明らかに広い間隔だけを本当のページ境界とみなす方が頑健。
+function computePageBoundariesFromLineXs(lineXs: number[], linePitch: number, scrollWidth: number): number[] {
+  if (lineXs.length === 0) return [0];
+  if (lineXs.length === 1) return [0];
+  const deltas: number[] = [];
+  for (let i = 1; i < lineXs.length; i++) {
+    deltas.push(lineXs[i - 1] - lineXs[i]);
+  }
+  const sorted = [...deltas].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || linePitch;
+  // 列間の隙間(column-gap)は通常の行間の1.4倍を大きく超えるはず。多少の実機ブレを
+  // 吸収しつつ、通常の行間と誤検出しないよう閾値を設定する。
+  const threshold = Math.max(median * 1.4, median + linePitch * 0.6);
+
+  const boundaries: number[] = [];
+  for (let i = 0; i < deltas.length; i++) {
+    if (deltas[i] > threshold) {
+      boundaries.push((lineXs[i] + lineXs[i + 1]) / 2);
+    }
+  }
+  // 最後のページは文書の本当の先頭(x=0)まで表示する。
+  boundaries.push(0);
+  return boundaries.map((b) => Math.max(0, Math.min(scrollWidth, b)));
+}
+
 export default function ReaderPage() {
   const { novelId, chapterId } = useParams<{ novelId: string; chapterId: string }>();
   const router = useRouter();
@@ -49,10 +115,12 @@ export default function ReaderPage() {
   // 一度自然なレイアウトでscrollWidthを測り、画面幅の整数倍に切り上げた値をwidthとして明示指定し
   // 再レイアウトさせることで、ブラウザに列幅を画面幅ちょうどへ強制的に揃え直させる（2パス測定）。
   const [pinnedWidth, setPinnedWidth] = useState<number | null>(null);
-  // 縦書き+ページ送りの組み合わせは、CSS columnsの列幅計算にどうしても数px単位の実機依存の
-  // 誤差が乗り、ページ境界で文字が視覚的に見切れることがあるのを実機検証で確認した
-  // （横書きは同じ仕組みで問題なし、docs/KNOWN_ISSUES.md参照）。直るまでは縦書き時は
-  // pageMode:PAGINATION設定でも従来のスクロール表示にフォールバックする。
+  // 縦書き時のページ境界(scrollLeft目標値)。measureLineStartXs/computePageBoundariesFromLineXsで
+  // 実測して埋める。横書きはcolumnWidth+columnGap=画面幅の単純な等間隔で問題ないため使わない。
+  const pageBoundariesRef = useRef<number[]>([]);
+  // 縦書き+ページ送りは、実測ベースの境界検出に切り替えても文字の見切れが解消しなかった
+  // （column-gapがvertical-rlの多段組で正しく反映されていない可能性がある、実機検証中に
+  // 判明。docs/DECISIONS.md参照）。直るまでは縦書き時はスクロール表示にフォールバックする。
   const isPaged = settings.pageMode === "PAGINATION" && settings.writingMode === "HORIZONTAL";
   const marginPx = MARGIN_PX[settings.marginSize] ?? MARGIN_PX.MEDIUM;
 
@@ -210,36 +278,63 @@ export default function ReaderPage() {
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         const el = scrollRef.current;
-        if (!el) return;
+        const article = articleRef.current;
+        if (!el || !article) return;
         const w = viewportSize.width;
+
+        if (settings.writingMode === "VERTICAL") {
+          // 縦書き: 実測した行のx座標から、行間隔が明らかに広い場所（＝本当のページ境界）を
+          // 直接検出する（上のコメント参照。「1ページ何行」を事前に決め打ちしない）。
+          const linePitch = settings.fontSize * settings.lineHeight;
+          const lineXs = measureLineStartXs(article, el.scrollLeft);
+          const boundaries = computePageBoundariesFromLineXs(lineXs, linePitch, pinnedWidth);
+          pageBoundariesRef.current = boundaries;
+          const count = boundaries.length;
+          setPageCount(count);
+
+          let current: number;
+          if (restoreFractionRef.current !== null) {
+            current = Math.round(restoreFractionRef.current * (count - 1));
+            restoreFractionRef.current = null;
+          } else {
+            // 現在のscrollLeftに最も近い境界を探す（設定変更などでの再計算時、現在位置を維持する）。
+            current = 0;
+            let bestDist = Infinity;
+            boundaries.forEach((b, idx) => {
+              const dist = Math.abs(b - el.scrollLeft);
+              if (dist < bestDist) {
+                bestDist = dist;
+                current = idx;
+              }
+            });
+          }
+          current = Math.max(0, Math.min(count - 1, current));
+          setPageIndex(current);
+          el.scrollLeft = boundaries[current];
+          return;
+        }
+
+        // 横書き: columnWidth+columnGap=画面幅ちょうどになるよう構成しているため、
+        // 単純な等間隔ステップで問題ない（実機検証でクリーンなことを確認済み）。
         const count = Math.max(1, Math.round(pinnedWidth / w));
         setPageCount(count);
-        // el.scrollWidthではなくpinnedWidthから求める: ライブDOM値はスクロール位置によって
-        // サブピクセル誤差が乗ることがあり、それがgoToPageでの累積ズレの原因になっていた。
-        const maxScrollLeft = Math.max(0, pinnedWidth - w);
         let rawIndex;
         if (restoreFractionRef.current !== null) {
-          // 保存済みの読書位置(0=先頭,1=末尾)からページ番号へ直接変換する。
-          // pinnedWidth確定前のscrollWidthを基準にel.scrollLeftを一度設定してしまうと、
-          // ピン留め後のscrollWidthとズレて初期ページが1つずれてしまうため
-          // （ライブなscrollLeftは経由せず、fractionから直接求める）。
           rawIndex = restoreFractionRef.current * (count - 1);
           restoreFractionRef.current = null;
         } else {
-          // 縦書きは先頭ページが右端(scrollLeft=max)、末尾ページが左端(scrollLeft=0)になる
-          // （なろう等の縦書き連続スクロールと同じ向き。docs/DECISIONS.md参照）。
-          rawIndex = settings.writingMode === "VERTICAL" ? (maxScrollLeft - el.scrollLeft) / w : el.scrollLeft / w;
+          rawIndex = el.scrollLeft / w;
         }
         const current = Math.max(0, Math.min(count - 1, Math.round(rawIndex)));
         setPageIndex(current);
-        el.scrollLeft = settings.writingMode === "VERTICAL" ? Math.max(0, maxScrollLeft - current * w) : current * w;
+        el.scrollLeft = current * w;
       });
     });
     return () => {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, [isPaged, isLoading, bodyHtml, viewportSize, pinnedWidth, settings.writingMode]);
+  }, [isPaged, isLoading, bodyHtml, viewportSize, pinnedWidth, settings.writingMode, settings.fontSize, settings.lineHeight]);
 
   const computeScrollFraction = useCallback(() => {
     const el = scrollRef.current;
@@ -299,12 +394,14 @@ export default function ReaderPage() {
         goTo(nextChapter);
         return;
       }
-      const w = viewportSize.width;
-      // el.scrollWidthではなくpinnedWidthから求める（理由はページ数確定処理と同じ、
-      // ライブDOM値のサブピクセル誤差による累積ズレを避けるため）。
-      const maxScrollLeft = Math.max(0, pinnedWidth - w);
       setPageIndex(index);
-      el.scrollLeft = settings.writingMode === "VERTICAL" ? Math.max(0, maxScrollLeft - index * w) : index * w;
+      if (settings.writingMode === "VERTICAL") {
+        // 実測したページ境界（本当に空白な場所）を使う。理由はページ数確定処理と同じ。
+        const boundary = pageBoundariesRef.current[index];
+        el.scrollLeft = boundary !== undefined ? boundary : 0;
+      } else {
+        el.scrollLeft = index * viewportSize.width;
+      }
     },
     [viewportSize.width, pinnedWidth, pageCount, goTo, nextChapter, settings.writingMode]
   );
@@ -378,11 +475,6 @@ export default function ReaderPage() {
       : rawColumnWidth;
   const columnGap = viewportSize.width - columnWidth;
   const effectivePadding = columnGap / 2;
-  // columnWidthだけを指定した場合、明示widthで総幅をピン留めしても列単位では
-  // ブラウザが「最適化」のため実際の列幅を微妙に再配分することがあり、総幅は一致しても
-  // 個々のページ境界が数px単位でずれる（実機検証で確認済み、文字が両端で見切れる原因）。
-  // columnCountも同時に明示することで列数と列幅の関係を一意に固定し、再配分の余地を無くす。
-  const columnCount = pinnedWidth !== null && viewportSize.width > 0 ? Math.round(pinnedWidth / viewportSize.width) : undefined;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background">
@@ -412,7 +504,6 @@ export default function ReaderPage() {
                 fontSize: settings.fontSize,
                 lineHeight: settings.lineHeight,
                 columnWidth,
-                columnCount,
                 columnGap,
                 // column-fillの既定値balanceは列の高さを均等化しようと詰め方を調整するため、
                 // 列幅=画面幅という前提が崩れてページ境界がずれる（文字の食い違いの原因になっていた）。

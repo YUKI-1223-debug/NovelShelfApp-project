@@ -1,6 +1,7 @@
 package com.novelshelf.infrastructure.adapter.hameln;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.novelshelf.infrastructure.adapter.ExternalChapter;
 import com.novelshelf.infrastructure.adapter.ExternalChapterContent;
@@ -16,12 +17,17 @@ import org.junit.jupiter.api.Test;
 @Tag("external")
 class HamelnAdapterLiveTest {
 
-    private static final HamelnProperties PROPERTIES = new HamelnProperties("https://syosetu.org", 1000);
+    private static final HamelnProperties PROPERTIES =
+            new HamelnProperties("https://syosetu.org", "https://h.syosetu.org", 1000);
     private final HamelnAdapter adapter = new HamelnAdapter(PROPERTIES, new HamelnRateLimiter(PROPERTIES));
 
     // 「強欲の旅人は神の恩恵を受けない」（前書き・あとがきの両方がある話を含む）
     private static final String KNOWN_NOVEL_URL = "https://syosetu.org/novel/417556/";
     private static final String KNOWN_NOVEL_ID = "417556";
+
+    // R18作品での疎通確認用。実行時に任意の実在novelId(h.syosetu.org)を指定して手動確認する:
+    // ./gradlew externalTest --tests "*HamelnAdapterLiveTest" -DhamelnR18NovelId=222208
+    private static final String KNOWN_R18_NOVEL_ID = System.getProperty("hamelnR18NovelId");
 
     @Test
     void resolveNovelReturnsRealMetadata() {
@@ -48,5 +54,32 @@ class HamelnAdapterLiveTest {
         assertThat(content.title()).isNotBlank();
         assertThat(content.bodyHtml()).contains("<p>");
         assertThat(content.bodyHtml().length()).isGreaterThan(3000);
+    }
+
+    @Test
+    void resolveR18NovelReturnsRealMetadata() {
+        assumeTrue(KNOWN_R18_NOVEL_ID != null, "hamelnR18NovelId システムプロパティ未指定のためスキップ");
+
+        String url = "https://h.syosetu.org/novel/" + KNOWN_R18_NOVEL_ID + "/";
+        ExternalNovelMetadata meta = adapter.resolveNovel(url);
+
+        assertThat(meta.externalNovelId()).isEqualTo("r18:" + KNOWN_R18_NOVEL_ID);
+        assertThat(meta.title()).isNotBlank();
+        assertThat(meta.authorName()).isNotBlank();
+        assertThat(meta.totalChapters()).isGreaterThan(0);
+    }
+
+    @Test
+    void fetchR18ChapterListAndContentReturnRealText() {
+        assumeTrue(KNOWN_R18_NOVEL_ID != null, "hamelnR18NovelId システムプロパティ未指定のためスキップ");
+
+        String externalNovelId = "r18:" + KNOWN_R18_NOVEL_ID;
+        List<ExternalChapter> chapters = adapter.fetchChapterList(externalNovelId);
+        assertThat(chapters).isNotEmpty();
+
+        ExternalChapter first = chapters.get(0);
+        ExternalChapterContent content = adapter.fetchChapterContent(externalNovelId, first.externalChapterId());
+        assertThat(content.title()).isNotBlank();
+        assertThat(content.bodyHtml()).contains("<p>");
     }
 }
