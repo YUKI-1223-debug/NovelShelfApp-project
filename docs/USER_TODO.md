@@ -4,14 +4,18 @@ Claude Codeで対応可能な作業は含めない。ユーザー本人でない
 
 ## 今すぐ必要
 
-1. **【ブロッカー】Gitの`user.name`/`user.email`設定**
-   初回コミットを試みたところ、Gitに身元情報が未設定（ローカル・グローバルとも）で失敗しました。Gitの設定変更はユーザー自身に行ってもらう方針のため、以下を実行してください。
-   ```
-   git config --global user.name "あなたの名前かGitHubユーザー名"
-   git config --global user.email "your@email.com"
-   ```
-   （GitHubで使うメールアドレスに合わせておくと、後でコミットの著者が正しく紐づきます。noreplyメール等でも構いません。）
-   設定後、コミットのやり直し・GitHubリモートの作成・VPSでの`git clone`に進みます（`git add`は完了済みで、コミット待ちの状態がステージされたまま残っています）。
+1. **【ブロッカー】GitHubリモートリポジトリの作成とpush**
+   Git設定完了、初回コミット済み（`c1fdbcd`、210ファイル）。`gh` CLIが未インストールのため、以下の手順で手動作成してください。
+   1. GitHubで新しいリポジトリを作成（https://github.com/new 、Public/Privateはお好みで、README/`.gitignore`/LICENSEは追加しない＝空のリポジトリにする）
+   2. リポジトリ作成後に表示されるURLを使い、以下をこのディレクトリで実行:
+      ```
+      git remote add origin <あなたのリポジトリのURL>
+      git branch -M main
+      git push -u origin main
+      ```
+   完了したらVPSでの`git clone`（`docs/DEPLOY.md`ステップ2以降）に進みます。
+
+   コミット時の補足: コミット直前のレビューで、Nginx TLS動作確認用に一時生成した自己署名証明書の秘密鍵が`docs/`に紛れ込んでいるのを発見し、コミットから除外・削除しました（VPSのSSH鍵とは別物、push前だったので実害なし）。今後同様の一時ファイルを誤ってコミットしないよう`.gitignore`に`*.pem`/`*.key`を追加済みです。
 
 2. **ブラウザでの実機確認（任意、ただし推奨）**
    `http://localhost:3002` （Docker Composeを起動したままにしています）にアクセスし、実際に使ってみてください。
