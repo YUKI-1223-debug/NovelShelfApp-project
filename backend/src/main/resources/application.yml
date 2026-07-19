@@ -42,6 +42,12 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # MAIL_HOST未設定時はSMTP接続テストが失敗し、それだけで/actuator/health全体がDOWNになって
+    # Dockerのhealthcheckを落としてしまう（2026-07-19、本番で実際に発生）。メール送信の可否は
+    # PasswordResetService側で個別にハンドリングしており、アプリ全体の健全性とは無関係のため除外する。
+    mail:
+      enabled: false
 
 novelshelf:
   jwt:
