@@ -11,9 +11,14 @@ interface AddNovelDialogProps {
 // 開いたタブのURLをこちら側から自動で読み取ることはできない（詳細はdocs/DECISIONS.md参照）ため、
 // 検索→対象ページのURLをコピー→このダイアログに戻って「追加」を押すとクリップボードから
 // 自動で読み取る、という二段構えのフローにしている。
+// なろうのR18作品はnovel18.syosetu.com単体に統一された検索ページがなく、
+// ノクターン/ムーンライト/ミッドナイトのブランドごとに検索ページが分かれているため、
+// 1つにまとめず個別のボタンにしている（実機確認でURLが異なると判明、2026-07-19）。
 const SEARCH_LINKS = [
   { label: "なろう", url: "https://yomou.syosetu.com/search.php" },
-  { label: "なろう(R18)", url: "https://novel18.syosetu.com/search/" },
+  { label: "ノクターン", url: "https://noc.syosetu.com/search/" },
+  { label: "ムーンライト", url: "https://mnlt.syosetu.com/search/" },
+  { label: "ミッドナイト", url: "https://mid.syosetu.com/search/" },
   { label: "カクヨム", url: "https://kakuyomu.jp/search" },
   { label: "ハーメルン", url: "https://syosetu.org/search/" },
 ];
