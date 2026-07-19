@@ -65,4 +65,8 @@ tasks.register('externalTest', Test) {
 	useJUnitPlatform {
 		includeTags 'external'
 	}
+	// R18疎通テスト用の実ncode指定を、ビルドJVMからテストのフォークJVMへ転送する（未指定時はnullのまま渡し、該当テストはスキップされる）
+	if (System.getProperty('narouR18Ncode') != null) {
+		systemProperty 'narouR18Ncode', System.getProperty('narouR18Ncode')
+	}
 }

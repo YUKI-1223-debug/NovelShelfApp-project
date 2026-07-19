@@ -38,6 +38,9 @@ novelshelf:
     api-base-url: ${NAROU_API_BASE_URL:https://api.syosetu.com/novelapi/api/}
     site-base-url: ${NAROU_SITE_BASE_URL:https://ncode.syosetu.com}
     request-interval-ms: ${NAROU_REQUEST_INTERVAL_MS:1000}
+    # ノクターン/ムーンライト/ミッドナイトノベルズ(R18)向け。参照: docs/DECISIONS.md
+    r18-api-base-url: ${NAROU_R18_API_BASE_URL:https://api.syosetu.com/novel18api/api/}
+    r18-site-base-url: ${NAROU_R18_SITE_BASE_URL:https://novel18.syosetu.com}
   cors:
     # 本番はCORS_ALLOWED_ORIGINSにカンマ区切りで実際のオリジン(例: https://novelshelf.jp)を指定する
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

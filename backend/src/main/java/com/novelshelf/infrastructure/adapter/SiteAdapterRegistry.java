@@ -49,7 +49,7 @@ public class SiteAdapterRegistry {
 
     private boolean matchesSite(SiteCode siteCode, String url) {
         return switch (siteCode) {
-            case NAROU -> url.contains("ncode.syosetu.com");
+            case NAROU -> url.contains("ncode.syosetu.com") || url.contains("novel18.syosetu.com");
             case KAKUYOMU -> url.contains("kakuyomu.jp");
             case HAMELN -> url.contains("syosetu.org");
             case PIXIV -> url.contains("pixiv.net");

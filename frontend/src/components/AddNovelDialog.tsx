@@ -49,7 +49,7 @@ export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>
         <div>
           <h2 className="text-base font-bold">作品を追加</h2>
           <p className="mt-1 text-xs text-muted">
-            なろう（ncode.syosetu.com）のURLは作品情報を取得します。他サイトはリンクのみ登録されます。
+            なろう（ncode.syosetu.com、R18のnovel18.syosetu.comも可）のURLは作品情報を取得します。他サイトはリンクのみ登録されます。
           </p>
         </div>
         <input

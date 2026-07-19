@@ -2,6 +2,8 @@
 // IndexedDBにそのまま保存しており、Phase1で要求している暗号化・容量表示・上限設定は未実装（docs/KNOWN_ISSUES.md参照）。
 "use client";
 
+import { CHAPTER_STORE as STORE_NAME, openDb } from "./db";
+
 export interface CachedChapter {
   chapterId: string;
   novelId: string;
@@ -10,25 +12,6 @@ export interface CachedChapter {
   bodyHtml: string;
   sourceUrl: string;
   cachedAt: number;
-}
-
-const DB_NAME = "novelshelf-cache";
-const STORE_NAME = "chapters";
-const DB_VERSION = 1;
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: "chapterId" });
-        store.createIndex("novelId", "novelId", { unique: false });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
 }
 
 export async function putCachedChapter(chapter: Omit<CachedChapter, "cachedAt">): Promise<void> {

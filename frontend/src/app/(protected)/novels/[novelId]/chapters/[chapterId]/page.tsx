@@ -9,6 +9,7 @@ import { ApiError, novelsApi, readingApi } from "@/lib/api";
 import type { Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
+import { queuePendingPosition } from "@/lib/offline/positionQueue";
 
 const MARGIN_PADDING: Record<string, string> = {
   SMALL: "px-3",
@@ -53,6 +54,9 @@ export default function ReaderPage() {
       setIsLoading(true);
       setError(null);
       startedAtRef.current = Date.now();
+      // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
+      // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
+      restoreFractionRef.current = 0;
 
       readingApi
         .getPosition(novelId)
@@ -132,7 +136,14 @@ export default function ReaderPage() {
 
   const saveProgress = useCallback(() => {
     if (!scrollRef.current) return;
-    readingApi.putPosition(novelId, chapterId, computeScrollFraction()).catch(() => {});
+    const scrollPosition = computeScrollFraction();
+    readingApi.putPosition(novelId, chapterId, scrollPosition).catch((err) => {
+      // オフライン等でネットワーク自体が失敗した場合のみキューに積む。
+      // ApiError（401など、サーバーが応答した上での失敗）は再試行しても直らないためキューに積まない。
+      if (!(err instanceof ApiError)) {
+        queuePendingPosition(novelId, chapterId, scrollPosition).catch(() => {});
+      }
+    });
 
     const durationSeconds = Math.round((Date.now() - startedAtRef.current) / 1000);
     if (durationSeconds > 2) {
@@ -215,16 +226,21 @@ export default function ReaderPage() {
         </div>
       )}
 
-      <div ref={scrollRef} className={`flex-1 overflow-auto ${paddingClass} py-6`}>
+      <div ref={scrollRef} className={`min-h-0 flex-1 overflow-auto ${paddingClass} py-6`}>
         {isLoading ? (
           <p className="text-center text-sm text-muted">読み込み中...</p>
         ) : error ? (
           <p className="text-center text-sm text-update">{error}</p>
         ) : (
-          <div className={settings.writingMode === "VERTICAL" ? "flex h-full justify-end" : "mx-auto max-w-2xl"}>
+          <div className={settings.writingMode === "VERTICAL" ? "flex h-full" : "mx-auto max-w-2xl"}>
+            {/* justify-endではなくml-autoで右寄せする: はみ出た内容がjustify-content側の
+                開始方向(左)に隠れると多くのブラウザでスクロール可能領域として認識されない
+                (flexboxのoverflow既知の挙動)ため、はみ出ない場合だけ右寄せされるml-autoを使う。 */}
             <article
               className={
-                settings.writingMode === "VERTICAL" ? `writing-vertical h-full ${fontClass}` : fontClass
+                settings.writingMode === "VERTICAL"
+                  ? `writing-vertical ml-auto h-full ${fontClass}`
+                  : fontClass
               }
               style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight }}
             >

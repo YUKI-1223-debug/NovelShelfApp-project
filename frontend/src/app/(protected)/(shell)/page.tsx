@@ -6,8 +6,16 @@ import { AddNovelDialog } from "@/components/AddNovelDialog";
 import { BookCover } from "@/components/BookCover";
 import { ChartIcon, HeartIcon, PlusIcon } from "@/components/icons";
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfStatus } from "@/lib/api";
+import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 
 type FilterKey = "ALL" | ShelfStatus | "FAVORITE" | "UPDATED";
+
+// サーバー側のフィルタ(shelfApi.list)と同じ条件をキャッシュデータに対して再現する。
+function filterCachedEntries(entries: BookshelfEntry[], key: FilterKey): BookshelfEntry[] {
+  if (key === "FAVORITE") return entries.filter((e) => e.isFavorite);
+  if (key === "ALL" || key === "UPDATED") return entries;
+  return entries.filter((e) => e.status === key);
+}
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "ALL", label: "すべて" },
@@ -23,21 +31,36 @@ export default function BookshelfPage() {
   const [filter, setFilter] = useState<FilterKey>("ALL");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async (key: FilterKey) => {
     setIsLoading(true);
     setError(null);
+    setFromCache(false);
     try {
       if (key === "FAVORITE") {
         setEntries(await shelfApi.list({ favorite: true }));
       } else if (key === "ALL" || key === "UPDATED") {
-        setEntries(await shelfApi.list());
+        const result = await shelfApi.list();
+        setEntries(result);
+        putCachedShelf(result).catch(() => {});
       } else {
         setEntries(await shelfApi.list({ status: key }));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "本棚の取得に失敗しました。");
+      if (err instanceof ApiError) {
+        setError(err.message);
+        return;
+      }
+      // ネットワーク自体の失敗(オフライン)。最後に取得できた本棚をキャッシュから表示する。
+      const cached = await getCachedShelf();
+      if (cached) {
+        setEntries(filterCachedEntries(cached, key));
+        setFromCache(true);
+      } else {
+        setError("本棚の取得に失敗しました。");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +120,9 @@ export default function BookshelfPage() {
       </div>
 
       {error && <p className="text-sm text-update">{error}</p>}
+      {fromCache && (
+        <p className="text-xs text-muted">オフライン中のため、最後に取得した本棚を表示しています。</p>
+      )}
 
       {isLoading ? (
         <p className="py-8 text-center text-sm text-muted">読み込み中...</p>
