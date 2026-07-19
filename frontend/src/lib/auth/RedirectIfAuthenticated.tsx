@@ -10,7 +10,9 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      router.replace("/");
+      // "/"以外への相対パスのみ許可する（next経由の外部URLへのオープンリダイレクト対策）。
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(next && next.startsWith("/") ? next : "/");
     }
   }, [isReady, isAuthenticated, router]);
 

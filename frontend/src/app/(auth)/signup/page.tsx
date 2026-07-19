@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError } from "@/lib/api";
@@ -12,6 +12,10 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    queueMicrotask(() => setSearch(window.location.search));
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -80,7 +84,7 @@ export default function SignupPage() {
       </button>
       <p className="text-center text-sm text-muted">
         既にアカウントをお持ちの方は{" "}
-        <Link href="/login" className="font-semibold text-accent-soft underline underline-offset-2">
+        <Link href={`/login${search}`} className="font-semibold text-accent-soft underline underline-offset-2">
           ログイン
         </Link>
       </p>

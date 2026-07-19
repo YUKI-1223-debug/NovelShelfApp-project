@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError } from "@/lib/api";
@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // next(戻り先)をsignupリンクへ引き継ぐ。SSR時はwindowが無いため空のままにし、
+  // マウント後に補う（ハイドレーション不整合を避けるため）。
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    queueMicrotask(() => setSearch(window.location.search));
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -70,7 +76,7 @@ export default function LoginPage() {
       </p>
       <p className="text-center text-sm text-muted">
         アカウントをお持ちでない方は{" "}
-        <Link href="/signup" className="font-semibold text-accent-soft underline underline-offset-2">
+        <Link href={`/signup${search}`} className="font-semibold text-accent-soft underline underline-offset-2">
           新規登録
         </Link>
       </p>

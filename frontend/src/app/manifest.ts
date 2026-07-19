@@ -19,5 +19,18 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
+    // Android/Windows版Chrome・Edgeでインストール後、OS標準の共有シートにNovelShelfが出るようにする。
+    // なろう/カクヨム/ハーメルンの検索ページ等で目的の作品を開いた状態で共有すると、
+    // そのページのURLを受け取って本棚に追加する（/share参照）。iOS Safariは2026-07時点で
+    // share_targetに非対応のため効果がない（docs/DECISIONS.md参照、ショートカットアプリでの代替手順あり）。
+    share_target: {
+      action: "/share",
+      method: "GET",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
   };
 }

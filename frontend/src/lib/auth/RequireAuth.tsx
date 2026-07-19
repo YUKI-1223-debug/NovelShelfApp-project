@@ -10,7 +10,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isReady && !isAuthenticated) {
-      router.replace("/login");
+      // window.location経由にする（useSearchParamsだとこのコンポーネントを使う
+      // 全ページをSuspenseで包む必要が出るため）。ログイン後に元の画面へ戻れるようにする。
+      const next = window.location.pathname + window.location.search;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
     }
   }, [isReady, isAuthenticated, router]);
 
