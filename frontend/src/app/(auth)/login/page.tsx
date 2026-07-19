@@ -63,6 +63,11 @@ export default function LoginPage() {
       >
         {submitting ? "ログイン中..." : "ログイン"}
       </button>
+      <p className="text-center text-xs text-muted">
+        <Link href="/forgot-password" className="underline underline-offset-2">
+          パスワードをお忘れですか？
+        </Link>
+      </p>
       <p className="text-center text-sm text-muted">
         アカウントをお持ちでない方は{" "}
         <Link href="/signup" className="font-semibold text-accent-soft underline underline-offset-2">

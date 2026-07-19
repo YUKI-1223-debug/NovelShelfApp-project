@@ -6,6 +6,7 @@ import com.novelshelf.domain.novel.SiteNotSupportedException;
 import com.novelshelf.domain.novel.UnresolvableNovelUrlException;
 import com.novelshelf.domain.user.EmailAlreadyExistsException;
 import com.novelshelf.domain.user.InvalidCredentialsException;
+import com.novelshelf.domain.user.InvalidPasswordResetTokenException;
 import com.novelshelf.domain.user.InvalidRefreshTokenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(e.getMessage()));
     }
 
-    @ExceptionHandler({InvalidCredentialsException.class, InvalidRefreshTokenException.class})
+    @ExceptionHandler({
+        InvalidCredentialsException.class,
+        InvalidRefreshTokenException.class,
+        InvalidPasswordResetTokenException.class
+    })
     public ResponseEntity<ErrorResponse> handleAuthFailure(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(e.getMessage()));
     }

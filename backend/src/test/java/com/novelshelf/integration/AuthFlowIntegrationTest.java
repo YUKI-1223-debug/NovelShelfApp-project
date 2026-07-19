@@ -107,4 +107,27 @@ class AuthFlowIntegrationTest {
                 restTemplate.postForEntity("/api/v1/auth/refresh", Map.of("refreshToken", refreshToken), Map.class);
         assertThat(reuse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
+
+    @Test
+    void passwordResetRequestReturnsNoContentRegardlessOfWhetherEmailExists() {
+        String email = uniqueEmail();
+        restTemplate.postForEntity("/api/v1/auth/signup", Map.of("email", email, "password", "password123"), Map.class);
+
+        ResponseEntity<Void> forExisting =
+                restTemplate.postForEntity("/api/v1/auth/password-reset/request", Map.of("email", email), Void.class);
+        ResponseEntity<Void> forUnknown = restTemplate.postForEntity(
+                "/api/v1/auth/password-reset/request", Map.of("email", uniqueEmail()), Void.class);
+
+        assertThat(forExisting.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(forUnknown.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void passwordResetConfirmWithBogusTokenReturns401() {
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/api/v1/auth/password-reset/confirm",
+                Map.of("token", "not-a-real-token", "newPassword", "newpassword123"),
+                Map.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
 }

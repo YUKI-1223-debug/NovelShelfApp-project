@@ -45,7 +45,11 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/health/**")
                         .permitAll()
                         .requestMatchers(
-                                "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/refresh")
+                                "/api/v1/auth/signup",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/password-reset/request",
+                                "/api/v1/auth/password-reset/confirm")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

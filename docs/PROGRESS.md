@@ -8,6 +8,14 @@
 
 未対応: `www.novelshelf.jp`（`nginx.conf`の`server_name`が`novelshelf.jp`固定のため、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。次のアクションは[NEXT_TASK.md](NEXT_TASK.md)参照。
 
+## 完了した作業（パスワードリセット機能、2026-07-19）
+
+SMTP送信方式（プロバイダ）が未決定のまま、SMTPプロトコルであればどのプロバイダでも動く汎用実装として完成させた（詳細・判断根拠は[DECISIONS.md](DECISIONS.md)参照）。
+
+- バックエンド: `password_reset_tokens`テーブル（`V5__password_reset_tokens.sql`）、`PasswordResetService`（トークン発行・ハッシュ化保存・メール送信・確認・パスワード更新・既存セッション失効）、`POST /auth/password-reset/request`・`POST /auth/password-reset/confirm`エンドポイント。`spring-boot-starter-mail`を追加し、`novelshelf.mail.*`（`MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD`/`MAIL_FROM`/`FRONTEND_BASE_URL`/`PASSWORD_RESET_TTL_MINUTES`）で設定する。
+- フロントエンド: `/forgot-password`（メールアドレス入力、アカウント存在有無に関わらず同じ結果表示）・`/reset-password`（トークン付きリンクから新パスワード設定、成功後ログイン画面へ自動遷移）ページを追加。ログイン画面に導線を追加。
+- テスト: `PasswordResetServiceTest`（正常系・期限切れ・使用済み・不正トークンの単体テスト）、`AuthFlowIntegrationTest`にエンドポイントレベルの統合テストを追加。**MailHog（使い捨てのDockerコンテナ）を一時的にSMTP送信先にしてPlaywrightで実際にブラウザ操作し、メール受信→リンククリック→パスワード再設定→旧パスワードでログイン失敗→新パスワードでログイン成功、という一連の流れを実際に確認した**（本番構成にMailHogは含めない）。
+
 ## 完了した作業（対応サイト拡大: カクヨム・ハーメルン、2026-07-19）
 
 ユーザー依頼により、カクヨム・ハーメルンのrobots.txt/利用規約を調査した上で`KakuyomuAdapter`・`HamelnAdapter`を実装した。pixiv小説は明確な禁止規定があるため実装しないことをユーザーと合意（調査内容・判断根拠は[DECISIONS.md](DECISIONS.md)参照）。
@@ -167,6 +175,28 @@ frontend/src/lib/api/endpoints.ts                                (更新: novels
 frontend/src/components/AddNovelDialog.tsx                       (更新: カクヨム/ハーメルン案内、pixiv手動タイトルの案内)
 frontend/src/components/icons.tsx                                (更新: PencilIcon追加)
 frontend/src/app/(protected)/(shell)/novels/[novelId]/page.tsx   (更新: タイトル編集UI、siteSupported利用)
+
+# パスワードリセット機能（2026-07-19）
+backend/build.gradle                                                          (更新: spring-boot-starter-mail追加)
+backend/src/main/resources/db/migration/V5__password_reset_tokens.sql         (新規)
+backend/src/main/java/com/novelshelf/domain/user/PasswordResetToken.java      (新規)
+backend/src/main/java/com/novelshelf/domain/user/PasswordResetTokenRepository.java (新規)
+backend/src/main/java/com/novelshelf/domain/user/InvalidPasswordResetTokenException.java (新規)
+backend/src/main/java/com/novelshelf/infrastructure/mail/MailProperties.java  (新規)
+backend/src/main/java/com/novelshelf/application/auth/PasswordResetService.java (新規)
+backend/src/main/java/com/novelshelf/presentation/auth/AuthController.java    (更新: password-reset/request・confirm追加)
+backend/src/main/java/com/novelshelf/infrastructure/security/SecurityConfig.java (更新: 新エンドポイントをpermitAllに追加)
+backend/src/main/java/com/novelshelf/presentation/common/GlobalExceptionHandler.java (更新: InvalidPasswordResetTokenExceptionを401に)
+backend/src/main/resources/application.yml                                   (更新: spring.mail/novelshelf.mail追加)
+backend/src/test/java/com/novelshelf/application/auth/PasswordResetServiceTest.java (新規)
+backend/src/test/java/com/novelshelf/integration/AuthFlowIntegrationTest.java (更新: パスワードリセットのテスト追加)
+docker/docker-compose.yml                                                    (更新: MAIL_*/FRONTEND_BASE_URL追加)
+docker/docker-compose.prod.yml                                               (更新: FRONTEND_BASE_URLをDOMAINから自動導出)
+.env.example                                                                 (更新: MAIL_*追加)
+frontend/src/lib/api/endpoints.ts                                            (更新: requestPasswordReset/confirmPasswordReset追加)
+frontend/src/app/(auth)/forgot-password/page.tsx                             (新規)
+frontend/src/app/(auth)/reset-password/page.tsx                              (新規)
+frontend/src/app/(auth)/login/page.tsx                                       (更新: パスワードを忘れた方へのリンク追加)
 ```
 
 ## 実装した機能

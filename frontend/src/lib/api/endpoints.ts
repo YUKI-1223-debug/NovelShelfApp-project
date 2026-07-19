@@ -27,6 +27,10 @@ export const authApi = {
   login: (email: string, password: string) =>
     apiFetch<AuthTokens>("/auth/login", { method: "POST", auth: false, body: { email, password } }),
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" }),
+  requestPasswordReset: (email: string) =>
+    apiFetch<void>("/auth/password-reset/request", { method: "POST", auth: false, body: { email } }),
+  confirmPasswordReset: (token: string, newPassword: string) =>
+    apiFetch<void>("/auth/password-reset/confirm", { method: "POST", auth: false, body: { token, newPassword } }),
 };
 
 export const sitesApi = {

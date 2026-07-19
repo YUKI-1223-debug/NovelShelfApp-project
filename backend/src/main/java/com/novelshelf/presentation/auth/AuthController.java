@@ -1,6 +1,7 @@
 package com.novelshelf.presentation.auth;
 
 import com.novelshelf.application.auth.AuthService;
+import com.novelshelf.application.auth.PasswordResetService;
 import com.novelshelf.application.auth.TokenPair;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -17,9 +18,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
     }
 
     public record SignupRequest(
@@ -28,6 +31,10 @@ public class AuthController {
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password) {}
 
     public record RefreshRequest(@NotBlank String refreshToken) {}
+
+    public record ForgotPasswordRequest(@Email @NotBlank String email) {}
+
+    public record ResetPasswordRequest(@NotBlank String token, @NotBlank @Size(min = 8) String newPassword) {}
 
     public record AuthTokensResponse(String accessToken, String refreshToken, long expiresIn) {
         static AuthTokensResponse from(TokenPair pair) {
@@ -58,5 +65,17 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@AuthenticationPrincipal UUID currentUserId) {
         authService.logoutAll(currentUserId);
+    }
+
+    @PostMapping("/password-reset/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestPasswordReset(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.confirmReset(request.token(), request.newPassword());
     }
 }
