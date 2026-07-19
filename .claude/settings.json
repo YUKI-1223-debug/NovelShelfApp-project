@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose --env-file .env -f docker/docker-compose.yml ps)",
+      "Bash(docker compose --env-file .env -f docker/docker-compose.yml logs *)",
+      "Bash(docker compose --env-file .env -f docker/docker-compose.yml config)",
+      "Bash(docker compose --env-file .env -f docker/docker-compose.yml version)",
+      "Bash(docker info)",
+      "Bash(java -version)",
+      "Bash(unzip -l *)",
+      "Bash(nslookup *)"
+    ]
+  }
+}

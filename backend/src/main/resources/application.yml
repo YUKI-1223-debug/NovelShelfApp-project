@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/novelshelf}
+    username: ${SPRING_DATASOURCE_USERNAME:novelshelf}
+    password: ${SPRING_DATASOURCE_PASSWORD:novelshelf}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+novelshelf:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-key-change-me-please-32bytes-min}
+    access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:30}
+    refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}
+  narou:
+    api-base-url: ${NAROU_API_BASE_URL:https://api.syosetu.com/novelapi/api/}
+    site-base-url: ${NAROU_SITE_BASE_URL:https://ncode.syosetu.com}
+    request-interval-ms: ${NAROU_REQUEST_INTERVAL_MS:1000}
+  cors:
+    # 本番はCORS_ALLOWED_ORIGINSにカンマ区切りで実際のオリジン(例: https://novelshelf.jp)を指定する
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

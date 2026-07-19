@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f0ece2;
+  --card: #f7f4ec;
+  --foreground: #221f1b;
+  --muted: #8b8377;
+  --border: #ddd6c7;
+  --accent: #2b3a55;
+  --accent-soft: #4a5b7d;
+  --accent-foreground: #f7f4ec;
+  --accent-tint: #e2e6ee;
+  --update: #a13d2b;
+  --update-tint: #f3ded8;
+}
+
+:root[data-theme="dark"] {
+  --background: #1b1a17;
+  --card: #242220;
+  --foreground: #ede8dc;
+  --muted: #837c6d;
+  --border: #38352e;
+  --accent: #9db0da;
+  --accent-soft: #7d92c2;
+  --accent-foreground: #1b1a17;
+  --accent-tint: #2a3348;
+  --update: #e08a6f;
+  --update-tint: #3a2620;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #1b1a17;
+    --card: #242220;
+    --foreground: #ede8dc;
+    --muted: #837c6d;
+    --border: #38352e;
+    --accent: #9db0da;
+    --accent-soft: #7d92c2;
+    --accent-foreground: #1b1a17;
+    --accent-tint: #2a3348;
+    --update: #e08a6f;
+    --update-tint: #3a2620;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-tint: var(--accent-tint);
+  --color-update: var(--update);
+  --color-update-tint: var(--update-tint);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "Segoe UI",
+    sans-serif;
+  --font-serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.reader-text-mincho {
+  font-family: var(--font-serif);
+}
+
+.reader-text-gothic {
+  font-family: var(--font-sans);
+}
+
+.writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}

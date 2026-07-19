@@ -1,0 +1,56 @@
+# 本番オーバーレイ。開発用 docker-compose.yml に重ねて使う。
+# 使用例: docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Nginxのみが80/443を外部公開し、frontend/backend/postgresはNginx経由でのみ到達可能にする。
+# TLS証明書の取得手順（初回ブートストラップ・更新）は docs/DEPLOY.md を参照。
+
+services:
+  postgres:
+    restart: unless-stopped
+    ports: !reset []  # 本番ではDBポートをホストに公開しない
+
+  backend:
+    restart: unless-stopped
+    ports: !reset []  # Nginx経由でのみ到達可能にする
+    environment:
+      # メモリ2GBのVPSでPostgres/Next.js/Nginxと同居させるため、JVMヒープに上限を設ける
+      JAVA_TOOL_OPTIONS: "-Xmx768m"
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN}/api/v1
+    restart: unless-stopped
+    ports: !reset []  # Nginx経由でのみ到達可能にする
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 証明書の取得・更新は `docker compose run --rm certbot ...` で都度実行する
+  # （docs/DEPLOY.md参照）。`up`では起動しないようprofilesで隔離している。
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["tools"]
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+
+volumes:
+  certbot_certs:
+  certbot_webroot:

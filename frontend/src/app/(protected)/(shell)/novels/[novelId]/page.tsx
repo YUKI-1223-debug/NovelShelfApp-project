@@ -1,0 +1,211 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { BookCover } from "@/components/BookCover";
+import { ChevronLeftIcon } from "@/components/icons";
+import {
+  ApiError,
+  novelsApi,
+  readingApi,
+  shelfApi,
+  type BookshelfEntry,
+  type Chapter,
+  type NovelDetail,
+  type ReadingPosition,
+  type ShelfStatus,
+} from "@/lib/api";
+import { putCachedChapter } from "@/lib/offline/chapterCache";
+
+const STATUS_LABEL: Record<ShelfStatus, string> = {
+  READING: "読書中",
+  COMPLETED: "読了",
+  READ_LATER: "あとで読む",
+};
+
+export default function NovelDetailPage() {
+  const { novelId } = useParams<{ novelId: string }>();
+  const router = useRouter();
+
+  const [novel, setNovel] = useState<NovelDetail | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [position, setPosition] = useState<ReadingPosition | null>(null);
+  const [shelfEntry, setShelfEntry] = useState<BookshelfEntry | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [novelRes, chaptersRes, shelfList] = await Promise.all([
+        novelsApi.detail(novelId),
+        novelsApi.chapters(novelId),
+        shelfApi.list(),
+      ]);
+      setNovel(novelRes);
+      setChapters(chaptersRes);
+      setShelfEntry(shelfList.find((e) => e.novel.id === novelId) ?? null);
+      try {
+        setPosition(await readingApi.getPosition(novelId));
+      } catch {
+        setPosition(null);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "作品情報の取得に失敗しました。");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [novelId]);
+
+  useEffect(() => {
+    queueMicrotask(() => load());
+  }, [load]);
+
+  async function addToShelf() {
+    const entry = await shelfApi.add(novelId, "READING");
+    setShelfEntry(entry);
+  }
+
+  async function updateStatus(status: ShelfStatus) {
+    if (!shelfEntry) return;
+    const updated = await shelfApi.update(shelfEntry.id, { status });
+    setShelfEntry(updated);
+  }
+
+  async function removeFromShelf() {
+    if (!shelfEntry) return;
+    await shelfApi.remove(shelfEntry.id);
+    setShelfEntry(null);
+  }
+
+  async function downloadAll() {
+    setDownloading(true);
+    setDownloadMessage(null);
+    try {
+      const contents = await novelsApi.downloadAll(novelId);
+      for (const c of contents) {
+        await putCachedChapter({
+          chapterId: c.chapterId,
+          novelId,
+          chapterNo: c.chapterNo,
+          title: c.title,
+          bodyHtml: c.bodyHtml,
+          sourceUrl: c.sourceUrl,
+        });
+      }
+      setDownloadMessage(`全${contents.length}話をこの端末に保存しました。`);
+    } catch (err) {
+      setDownloadMessage(err instanceof ApiError ? err.message : "オフライン保存に失敗しました。");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  if (isLoading) {
+    return <p className="p-6 text-center text-sm text-muted">読み込み中...</p>;
+  }
+  if (error || !novel) {
+    return <p className="p-6 text-center text-sm text-update">{error ?? "作品が見つかりません。"}</p>;
+  }
+
+  const continueChapterId = position?.chapterId ?? chapters[0]?.id;
+
+  return (
+    <div className="flex flex-col gap-5 px-4 pt-4">
+      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-muted">
+        <ChevronLeftIcon className="h-4 w-4" /> 戻る
+      </button>
+
+      <div className="flex gap-4">
+        <BookCover novelId={novel.id} title={novel.title} className="w-28 shrink-0" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-lg font-bold leading-snug">{novel.title}</h1>
+          <Link href={`/authors/${encodeURIComponent(novel.author)}`} className="text-sm text-accent-soft underline underline-offset-2">
+            {novel.author}
+          </Link>
+          <p className="text-xs text-muted">
+            {novel.site ?? "外部リンク"} ・ {novel.status === "COMPLETED" ? "完結" : "連載中"} ・ 全
+            {novel.totalChapters}話
+          </p>
+        </div>
+      </div>
+
+      {novel.synopsis && <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{novel.synopsis}</p>}
+
+      <div className="flex flex-col gap-2">
+        {continueChapterId ? (
+          <Link
+            href={`/novels/${novel.id}/chapters/${continueChapterId}`}
+            className="rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-accent-foreground"
+          >
+            {position ? "続きから読む" : "読み始める"}
+          </Link>
+        ) : (
+          <p className="text-center text-sm text-muted">この作品はまだ話一覧を取得できません。</p>
+        )}
+
+        {shelfEntry ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+            <div className="flex gap-2">
+              {(Object.keys(STATUS_LABEL) as ShelfStatus[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => updateStatus(s)}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium ${
+                    shelfEntry.status === s ? "border-accent bg-accent-tint text-accent-soft" : "border-border text-muted"
+                  }`}
+                >
+                  {STATUS_LABEL[s]}
+                </button>
+              ))}
+            </div>
+            <button onClick={removeFromShelf} className="text-xs text-muted underline underline-offset-2">
+              本棚から削除
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={addToShelf}
+            className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent-soft"
+          >
+            本棚に追加
+          </button>
+        )}
+
+        {novel.site && (
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={downloadAll}
+              disabled={downloading || chapters.length === 0}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
+            >
+              {downloading ? "取得中...(話数が多いと数分かかります)" : "全話をオフライン保存"}
+            </button>
+            {downloadMessage && <p className="text-xs text-muted">{downloadMessage}</p>}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 pb-6">
+        <h2 className="text-sm font-bold text-muted">話一覧（全{chapters.length}話）</h2>
+        {chapters.map((c) => (
+          <Link
+            key={c.id}
+            href={`/novels/${novel.id}/chapters/${c.id}`}
+            className={`flex items-center justify-between rounded-lg px-2 py-2.5 text-sm hover:bg-card ${
+              c.id === position?.chapterId ? "bg-accent-tint text-accent-soft" : ""
+            }`}
+          >
+            <span className="truncate">
+              第{c.chapterNo}話 {c.title}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

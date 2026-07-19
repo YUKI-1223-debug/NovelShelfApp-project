@@ -1,0 +1,618 @@
+<title>NovelShelf — UIモック (Phase1)</title>
+<style>
+  :root {
+    --bg: #f0ece2;
+    --bg-raised: #f7f4ec;
+    --ink: #221f1b;
+    --ink-soft: #5c564c;
+    --ink-faint: #8b8377;
+    --line: #ddd6c7;
+    --accent: #2b3a55;
+    --accent-soft: #4a5b7d;
+    --accent-tint: #e2e6ee;
+    --semantic-update: #a13d2b;
+    --semantic-update-tint: #f3ded8;
+    --favorite: #a13d2b;
+    --shadow: 0 1px 2px rgba(34,31,27,0.06), 0 8px 24px -12px rgba(34,31,27,0.18);
+    --radius-frame: 28px;
+    --radius-card: 14px;
+    --radius-chip: 999px;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #1b1a17;
+    --bg-raised: #242220;
+    --ink: #ede8dc;
+    --ink-soft: #bcb4a4;
+    --ink-faint: #837c6d;
+    --line: #38352e;
+    --accent: #9db0da;
+    --accent-soft: #7d92c2;
+    --accent-tint: #2a3348;
+    --semantic-update: #e08a6f;
+    --semantic-update-tint: #3a2620;
+    --favorite: #e08a6f;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px -14px rgba(0,0,0,0.6);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a17;
+      --bg-raised: #242220;
+      --ink: #ede8dc;
+      --ink-soft: #bcb4a4;
+      --ink-faint: #837c6d;
+      --line: #38352e;
+      --accent: #9db0da;
+      --accent-soft: #7d92c2;
+      --accent-tint: #2a3348;
+      --semantic-update: #e08a6f;
+      --semantic-update-tint: #3a2620;
+      --favorite: #e08a6f;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px -14px rgba(0,0,0,0.6);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+  }
+
+  header.intro {
+    max-width: 720px;
+    margin-bottom: 56px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-soft);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.25;
+    margin: 0 0 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+
+  .intro p {
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--ink-soft);
+    margin: 0 0 8px;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 40px 32px;
+  }
+
+  figure.screen {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .screen-name {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .screen-desc {
+    font-size: 13px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+  }
+
+  .frame {
+    border-radius: var(--radius-frame);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    aspect-ratio: 9 / 18.5;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-bar {
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .app-header {
+    padding: 4px 18px 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .app-title {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .app-sub {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  /* ---- 本棚 ---- */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 14px 10px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .tab {
+    font-size: 11.5px;
+    padding: 5px 11px;
+    border-radius: var(--radius-chip);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: var(--bg-raised);
+    font-weight: 600;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    padding: 0 14px 12px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .chip {
+    font-size: 10.5px;
+    padding: 4px 9px;
+    border-radius: var(--radius-chip);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .chip.on {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-tint);
+    font-weight: 600;
+  }
+
+  .shelf-grid {
+    flex: 1;
+    padding: 4px 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px 10px;
+    overflow: hidden;
+  }
+
+  .book {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: relative;
+  }
+
+  .cover {
+    aspect-ratio: 3 / 4.2;
+    border-radius: 5px;
+    background: linear-gradient(155deg, var(--cv1), var(--cv2));
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+
+  .badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: var(--semantic-update-tint);
+    color: var(--semantic-update);
+    letter-spacing: 0.02em;
+  }
+
+  .heart {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 11px;
+    color: var(--favorite);
+  }
+
+  .book-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .book-author {
+    font-size: 9px;
+    color: var(--ink-faint);
+  }
+
+  /* ---- 読書画面 ---- */
+  .reader-frame { background: var(--reader-bg, var(--bg-raised)); }
+  .reader-frame .reader-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    flex-shrink: 0;
+    color: var(--reader-ink-faint, var(--ink-faint));
+    font-size: 10px;
+  }
+  .reader-body {
+    flex: 1;
+    padding: 6px 22px 18px;
+    overflow: hidden;
+    color: var(--reader-ink, var(--ink));
+  }
+  .reader-body.vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+    font-size: 15.5px;
+    line-height: 2.05;
+    letter-spacing: 0.03em;
+    height: 100%;
+  }
+  .reader-body.horizontal {
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+    font-size: 14.5px;
+    line-height: 1.95;
+  }
+  .reader-body p { margin: 0 0 1.1em; }
+  .reader-foot {
+    padding: 10px 18px 14px;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-shrink: 0;
+    color: var(--reader-ink-faint, var(--ink-faint));
+    font-size: 15px;
+  }
+
+  /* ---- しおり ---- */
+  .bm-list {
+    flex: 1;
+    padding: 4px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .bm-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 11px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bm-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .bm-name { font-size: 12.5px; font-weight: 700; }
+  .bm-novel { font-size: 9.5px; color: var(--ink-faint); }
+  .bm-memo { font-size: 10.5px; color: var(--ink-soft); line-height: 1.5; }
+  .bm-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .bm-tag {
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: var(--radius-chip);
+    background: var(--accent-tint);
+    color: var(--accent-soft);
+    font-weight: 600;
+  }
+
+  /* ---- 設定 ---- */
+  .settings-list {
+    flex: 1;
+    padding: 2px 0 16px;
+    overflow: hidden;
+  }
+  .settings-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 12px 16px 6px;
+  }
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .setting-value {
+    font-size: 11px;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .switch {
+    width: 30px;
+    height: 17px;
+    border-radius: 999px;
+    background: var(--line);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .switch.on { background: var(--accent); }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--bg-raised);
+  }
+  .switch.on::after { left: 15px; }
+
+  /* ---- 統計 ---- */
+  .stats-body {
+    flex: 1;
+    padding: 4px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+  .stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .stat-tile {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 9px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .stat-num {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: 8.5px;
+    color: var(--ink-faint);
+  }
+  .cal-label {
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow {
+    font-size: 8px;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+  .cal-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: var(--line);
+  }
+  .cal-cell[data-l="1"] { background: color-mix(in srgb, var(--accent) 25%, var(--line)); }
+  .cal-cell[data-l="2"] { background: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .cal-cell[data-l="3"] { background: var(--accent); }
+
+  footer.note {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-faint);
+    line-height: 1.8;
+  }
+</style>
+
+<div class="page">
+  <header class="intro">
+    <p class="eyebrow">NovelShelf · Phase1 UIモック</p>
+    <h1>読書に集中できる、静かな本棚。</h1>
+    <p>広告なし・装飾を排したMaterial Design 3ベースのUI。以下6画面は縦横書き・ライト/ダーク・明朝/ゴシックの切り替えを含む読書体験の主要導線を示す。</p>
+    <p>実データではなくモックデータで構成。実装時は本文をOpenAPI（<code>/chapters/{chapterId}/content</code>）から取得する。</p>
+  </header>
+
+  <div class="gallery">
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">① 本棚</span>
+        <span class="screen-desc">ステータス（読書中/お気に入り/読了/あとで読む/更新あり）で絞り込み、作者・シリーズ・サイト・タグでグルーピング表示。</span>
+      </figcaption>
+      <div class="frame">
+        <div class="status-bar"></div>
+        <div class="app-header">
+          <span class="app-title">本棚</span>
+          <span class="app-sub">24作品</span>
+        </div>
+        <div class="tabs">
+          <span class="tab active">すべて</span>
+          <span class="tab">作者ごと</span>
+          <span class="tab">シリーズ</span>
+          <span class="tab">サイト</span>
+          <span class="tab">タグ</span>
+        </div>
+        <div class="filter-row">
+          <span class="chip on">読書中</span>
+          <span class="chip">お気に入り</span>
+          <span class="chip">読了</span>
+          <span class="chip">あとで読む</span>
+          <span class="chip">更新あり</span>
+        </div>
+        <div class="shelf-grid">
+          <div class="book"><div class="cover" style="--cv1:#3b4f78;--cv2:#232f47"><span class="badge">更新</span></div><div class="book-title">星霜のアルカディア</div><div class="book-author">霧崎 灯</div></div>
+          <div class="book"><div class="cover" style="--cv1:#7a5a45;--cv2:#4a3626"><span class="heart">♥</span></div><div class="book-title">鍛冶屋の令嬢</div><div class="book-author">遠野 一葉</div></div>
+          <div class="book"><div class="cover" style="--cv1:#5c7a5f;--cv2:#33472f"></div><div class="book-title">灰色の学園録</div><div class="book-author">結城 蒼</div></div>
+          <div class="book"><div class="cover" style="--cv1:#7a4560;--cv2:#472536"><span class="badge">更新</span></div><div class="book-title">深海のリリス</div><div class="book-author">白石 涼</div></div>
+          <div class="book"><div class="cover" style="--cv1:#8a7a3f;--cv2:#4f4520"></div><div class="book-title">錬金術師の午後</div><div class="book-author">神無月 蓮</div></div>
+          <div class="book"><div class="cover" style="--cv1:#476a7a;--cv2:#243b47"><span class="heart">♥</span></div><div class="book-title">境界線のノクターン</div><div class="book-author">霧崎 灯</div></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">② 読書画面 — 縦書き・明朝・ライト</span>
+        <span class="screen-desc">日本語小説の標準的な縦書き表示。ページ送りモード。フォント・行間・余白はすべて設定同期される。</span>
+      </figcaption>
+      <div class="frame reader-frame">
+        <div class="status-bar"></div>
+        <div class="reader-toolbar"><span>戻る</span><span>第12話 / 34話</span><span>Aa</span></div>
+        <div class="reader-body vertical">
+          <p>教室の窓から差し込む夕陽が、机の上のノートを橙色に染めていた。ページをめくる音だけが、静まり返った放課後の教室に響いている。あと少しで、物語は終わる。</p>
+        </div>
+        <div class="reader-foot"><span>‹</span><span>◦ ◦ ●</span><span>›</span></div>
+      </div>
+    </figure>
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">③ 読書画面 — 横書き・ゴシック・ダーク</span>
+        <span class="screen-desc">スクロールモード、ダークモード、ゴシック体。夜間の長時間読書を想定した低コントラスト背景。</span>
+      </figcaption>
+      <div class="frame reader-frame" style="--reader-bg:#17140f; --reader-ink:#e7dfcd; --reader-ink-faint:#8a8171;">
+        <div class="status-bar"></div>
+        <div class="reader-toolbar"><span>戻る</span><span>第7話 / 20話</span><span>Aa</span></div>
+        <div class="reader-body horizontal">
+          <p>港町の夜は、潮の匂いと灯りの数だけ静かだった。</p>
+          <p>彼女は手紙を封筒に戻すと、もう一度だけ窓の外を見た。約束の船はまだ着かない。</p>
+          <p>「大丈夫、まだ間に合う」</p>
+        </div>
+        <div class="reader-foot" style="color:#8a8171;"><span>あと3分で読了</span></div>
+      </div>
+    </figure>
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">④ しおり一覧</span>
+        <span class="screen-desc">複数しおりを名前・メモ・自由タグで管理。作品横断で一覧表示できる。</span>
+      </figcaption>
+      <div class="frame">
+        <div class="status-bar"></div>
+        <div class="app-header"><span class="app-title">しおり</span><span class="app-sub">12件</span></div>
+        <div class="bm-list">
+          <div class="bm-card">
+            <div class="bm-top"><span class="bm-name">伏線が回収された瞬間</span><span class="bm-novel">星霜のアルカディア・第9話</span></div>
+            <div class="bm-memo">冒頭の指輪の意味がここで繋がる。読み返す用。</div>
+            <div class="bm-tags"><span class="bm-tag">神作品</span><span class="bm-tag">伏線</span></div>
+          </div>
+          <div class="bm-card">
+            <div class="bm-top"><span class="bm-name">泣いた</span><span class="bm-novel">深海のリリス・第3話</span></div>
+            <div class="bm-memo">この章の会話だけで泣ける。</div>
+            <div class="bm-tags"><span class="bm-tag">泣ける</span></div>
+          </div>
+          <div class="bm-card">
+            <div class="bm-top"><span class="bm-name">続き未読</span><span class="bm-novel">鍛冶屋の令嬢・第21話</span></div>
+            <div class="bm-memo">明日の通勤で続きから。</div>
+            <div class="bm-tags"><span class="bm-tag">あとで読む</span></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">⑤ 設定</span>
+        <span class="screen-desc">読書体験・アカウント・クラウド同期の設定。すべて全デバイスに同期される。</span>
+      </figcaption>
+      <div class="frame">
+        <div class="status-bar"></div>
+        <div class="app-header"><span class="app-title">設定</span></div>
+        <div class="settings-list">
+          <div class="settings-group-label">読書</div>
+          <div class="setting-row"><span>ダークモード</span><span class="setting-value"><span class="switch on"></span></span></div>
+          <div class="setting-row"><span>表示方向</span><span class="setting-value">縦書き ›</span></div>
+          <div class="setting-row"><span>フォント</span><span class="setting-value">明朝 ›</span></div>
+          <div class="setting-row"><span>文字サイズ</span><span class="setting-value">16px ›</span></div>
+          <div class="setting-row"><span>行間</span><span class="setting-value">標準 ›</span></div>
+          <div class="setting-row"><span>ページ送り</span><span class="setting-value">スクロール ›</span></div>
+          <div class="settings-group-label">クラウド同期</div>
+          <div class="setting-row"><span>アカウント</span><span class="setting-value">yuuki@example.com ›</span></div>
+          <div class="setting-row"><span>オフライン保存上限</span><span class="setting-value">2.0 GB ›</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="screen">
+      <figcaption>
+        <span class="screen-name">⑥ 読書統計・カレンダー</span>
+        <span class="screen-desc">読了作品数・総読書時間・月別カレンダーヒートマップで読書ペースを可視化。</span>
+      </figcaption>
+      <div class="frame">
+        <div class="status-bar"></div>
+        <div class="app-header"><span class="app-title">統計</span></div>
+        <div class="stats-body">
+          <div class="stat-tiles">
+            <div class="stat-tile"><span class="stat-num">142</span><span class="stat-label">総読了話数</span></div>
+            <div class="stat-tile"><span class="stat-num">18</span><span class="stat-label">読了作品数</span></div>
+            <div class="stat-tile"><span class="stat-num">86h</span><span class="stat-label">総読書時間</span></div>
+          </div>
+          <div class="cal-label">2026年7月</div>
+          <div class="cal-grid">
+            <span class="cal-dow">日</span><span class="cal-dow">月</span><span class="cal-dow">火</span><span class="cal-dow">水</span><span class="cal-dow">木</span><span class="cal-dow">金</span><span class="cal-dow">土</span>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="0"></div><div class="cal-cell" data-l="3"></div><div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="0"></div>
+            <div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="3"></div><div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="0"></div><div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="3"></div>
+            <div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="2"></div><div class="cal-cell" data-l="0"></div><div class="cal-cell" data-l="1"></div><div class="cal-cell" data-l="3"></div><div class="cal-cell" data-l="2"></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+
+  <footer class="note">
+    表示中のテーマはビューア設定（OS / 右上のテーマ切替）に追従します。本ページは静的モックのため操作はできません。実装時のコンポーネント分割方針は <code>docs/phase1/directory-structure.md</code> の <code>frontend/src/components</code> を参照。
+  </footer>
+</div>

@@ -1,0 +1,800 @@
+openapi: 3.0.3
+info:
+  title: NovelShelf API
+  description: 個人利用の広告なしWeb小説リーダー「NovelShelf」のバックエンドAPI。
+  version: 0.1.0-phase1
+servers:
+  - url: /api/v1
+
+tags:
+  - name: auth
+  - name: sites
+  - name: novels
+  - name: shelf
+  - name: reading
+  - name: bookmarks
+  - name: tags
+  - name: settings
+  - name: stats
+  - name: updates
+  - name: offline
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------- Auth ----------
+  /auth/signup:
+    post:
+      tags: [auth]
+      summary: メールアドレス+パスワードでアカウント作成
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+                displayName: { type: string }
+      responses:
+        "201":
+          description: 作成成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "409": { description: メールアドレス重複 }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: ログイン
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "401": { description: 認証失敗 }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: アクセストークン再発行
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: ログアウト（リフレッシュトークン失効）
+      responses:
+        "204": { description: 成功 }
+
+  # ---------- Sites ----------
+  /sites:
+    get:
+      tags: [sites]
+      summary: 対応サイト一覧と対応状況を取得
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Site" }
+
+  # ---------- Novels ----------
+  /novels/resolve:
+    post:
+      tags: [novels]
+      summary: 作品URLから作品を登録（対応サイトなら実メタデータ、未対応サイトならリンクのみのプレースホルダーを作成）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        "200":
+          description: |
+            成功。対応サイト（実装時点ではなろうのみ）ならタイトル・作者・あらすじ等の実メタデータを取得して返す。
+            未対応サイト（カクヨム/ハーメルン/pixiv小説）の場合は本文取得を行わず、
+            URLをtitle/sourceUrlとしたプレースホルダー作品を作成して返す（本棚登録のみ可能、話一覧・本文取得は空/451になる）。
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Novel" }
+        "422":
+          description: URLがどの対応サイトのドメインとも一致せず、作品として認識できない
+
+  /novels/{novelId}:
+    get:
+      tags: [novels]
+      summary: 作品詳細取得
+      parameters:
+        - $ref: "#/components/parameters/NovelId"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NovelDetail" }
+
+  /novels/{novelId}/chapters:
+    get:
+      tags: [novels]
+      summary: 話一覧取得
+      parameters:
+        - $ref: "#/components/parameters/NovelId"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Chapter" }
+
+  /novels/{novelId}/download:
+    post:
+      tags: [novels]
+      summary: 全話本文を一括取得する（作品単位のオフライン保存用）
+      description: |
+        サイトへのリクエストは1話ごとに規約準拠のレート制限（なろうの場合1秒間隔）を維持したまま順次取得するため、
+        話数が多い作品ほどレスポンスに時間がかかる（例: 300話で約5分）。本文はサーバーに保存されず、都度サイトから取得して返す。
+      parameters:
+        - $ref: "#/components/parameters/NovelId"
+      responses:
+        "200":
+          description: 成功（全話分の本文）
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ChapterWithContent" }
+        "451":
+          description: 規約上、本文の自動取得ができないサイト
+
+  /novels/search:
+    get:
+      tags: [novels]
+      summary: タイトル/作者/ジャンル/サイト/タグで検索
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: site
+          in: query
+          schema: { type: string }
+        - name: genre
+          in: query
+          schema: { type: string }
+        - name: tag
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Novel" }
+
+  /chapters/{chapterId}/content:
+    get:
+      tags: [novels]
+      summary: 話本文取得（オンライン取得。オフラインキャッシュはクライアント側で管理）
+      parameters:
+        - $ref: "#/components/parameters/ChapterId"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChapterContent" }
+        "451":
+          description: 規約上、本文の自動取得ができないため外部リンクへの遷移が必要
+
+  # ---------- Bookshelf ----------
+  /shelf:
+    get:
+      tags: [shelf]
+      summary: 本棚一覧取得
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ShelfStatus" }
+        - name: favorite
+          in: query
+          schema: { type: boolean }
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [author, series, site, tag]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BookshelfEntry" }
+    post:
+      tags: [shelf]
+      summary: 作品を本棚に登録
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [novelId, status]
+              properties:
+                novelId: { type: string, format: uuid }
+                status: { $ref: "#/components/schemas/ShelfStatus" }
+      responses:
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookshelfEntry" }
+
+  /shelf/{entryId}:
+    patch:
+      tags: [shelf]
+      summary: 本棚エントリのステータス/お気に入り/タグを更新
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { $ref: "#/components/schemas/ShelfStatus" }
+                isFavorite: { type: boolean }
+                tagIds:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookshelfEntry" }
+    delete:
+      tags: [shelf]
+      summary: 本棚から削除
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "204": { description: 成功 }
+
+  # ---------- Reading position / history ----------
+  /reading/positions/{novelId}:
+    get:
+      tags: [reading]
+      summary: 作品の現在の読書位置を取得
+      parameters:
+        - $ref: "#/components/parameters/NovelId"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReadingPosition" }
+    put:
+      tags: [reading]
+      summary: 読書位置を更新（クロスデバイス同期）
+      parameters:
+        - $ref: "#/components/parameters/NovelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chapterId, scrollPosition]
+              properties:
+                chapterId: { type: string, format: uuid }
+                scrollPosition: { type: number, format: float }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReadingPosition" }
+
+  /reading/history:
+    post:
+      tags: [reading]
+      summary: 読書履歴を記録（話を読み終えた/一定時間閲覧した時にクライアントから送信）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chapterId, readAt, durationSeconds]
+              properties:
+                chapterId: { type: string, format: uuid }
+                readAt: { type: string, format: date-time }
+                durationSeconds: { type: integer }
+      responses:
+        "201": { description: 成功 }
+    get:
+      tags: [reading]
+      summary: 最近読んだ作品/話の履歴取得
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ReadingHistoryItem" }
+
+  # ---------- Bookmarks ----------
+  /bookmarks:
+    get:
+      tags: [bookmarks]
+      summary: しおり一覧取得
+      parameters:
+        - name: novelId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: tag
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Bookmark" }
+    post:
+      tags: [bookmarks]
+      summary: しおり作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookmarkInput" }
+      responses:
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+
+  /bookmarks/{bookmarkId}:
+    patch:
+      tags: [bookmarks]
+      summary: しおり更新
+      parameters:
+        - name: bookmarkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookmarkInput" }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+    delete:
+      tags: [bookmarks]
+      summary: しおり削除
+      parameters:
+        - name: bookmarkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: 成功 }
+
+  # ---------- Tags ----------
+  /tags:
+    get:
+      tags: [tags]
+      summary: ユーザー定義タグ一覧
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tag" }
+    post:
+      tags: [tags]
+      summary: タグ作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "201":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+
+  # ---------- Settings (sync) ----------
+  /settings:
+    get:
+      tags: [settings]
+      summary: 同期設定取得（ダークモード/縦横/フォント等）
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserSettings" }
+    put:
+      tags: [settings]
+      summary: 同期設定更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserSettings" }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserSettings" }
+
+  # ---------- Stats ----------
+  /stats/summary:
+    get:
+      tags: [stats]
+      summary: 総読了作品数/総読了話数/総読書時間
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatsSummary" }
+
+  /stats/breakdown:
+    get:
+      tags: [stats]
+      summary: 月別/サイト別/作者別の読書時間内訳
+      parameters:
+        - name: by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [month, site, author]
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, year, all]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StatsBreakdownItem" }
+
+  /stats/calendar:
+    get:
+      tags: [stats]
+      summary: 読書カレンダー（日別読書時間）
+      parameters:
+        - name: yearMonth
+          in: query
+          required: true
+          schema: { type: string, example: "2026-07" }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CalendarDay" }
+
+  # ---------- Updates ----------
+  /updates:
+    get:
+      tags: [updates]
+      summary: 更新のある本棚作品一覧
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Novel" }
+
+  /updates/check:
+    post:
+      tags: [updates]
+      summary: 更新確認を明示的にトリガー（対応サイトのみ）
+      responses:
+        "202": { description: 確認処理を受け付けた }
+
+  # ---------- Offline ----------
+  /offline/preferences:
+    get:
+      tags: [offline]
+      summary: オフライン保存意図（自動/明示）の一覧をクロスデバイス取得
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OfflineSavePreference" }
+    post:
+      tags: [offline]
+      summary: 話をオフライン保存対象として登録
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chapterId]
+              properties:
+                chapterId: { type: string, format: uuid }
+      responses:
+        "201": { description: 成功 }
+
+  /offline/preferences/{chapterId}:
+    delete:
+      tags: [offline]
+      summary: オフライン保存対象から除外
+      parameters:
+        - $ref: "#/components/parameters/ChapterId"
+      responses:
+        "204": { description: 成功 }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    NovelId:
+      name: novelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ChapterId:
+      name: chapterId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  schemas:
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer }
+
+    Site:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, enum: [NAROU, KAKUYOMU, HAMELN, PIXIV] }
+        name: { type: string }
+        isSupported: { type: boolean, description: "本文取得方式が確立済みか" }
+
+    ShelfStatus:
+      type: string
+      enum: [READING, COMPLETED, READ_LATER]
+
+    Novel:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        author: { type: string }
+        site: { type: string, enum: [NAROU, KAKUYOMU, HAMELN, PIXIV] }
+        genre: { type: string }
+        coverUrl: { type: string, format: uri }
+        sourceUrl: { type: string, format: uri }
+        status: { type: string, enum: [ONGOING, COMPLETED] }
+        latestKnownChapterNo: { type: integer }
+        hasUpdate: { type: boolean }
+
+    NovelDetail:
+      allOf:
+        - $ref: "#/components/schemas/Novel"
+        - type: object
+          properties:
+            synopsis: { type: string }
+            seriesId: { type: string, format: uuid, nullable: true }
+            totalChapters: { type: integer }
+
+    Chapter:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        novelId: { type: string, format: uuid }
+        chapterNo: { type: integer }
+        title: { type: string }
+        publishedAt: { type: string, format: date-time }
+
+    ChapterContent:
+      type: object
+      properties:
+        chapterId: { type: string, format: uuid }
+        title: { type: string }
+        bodyHtml: { type: string }
+        sourceUrl: { type: string, format: uri }
+
+    ChapterWithContent:
+      type: object
+      properties:
+        chapterId: { type: string, format: uuid }
+        chapterNo: { type: integer }
+        title: { type: string }
+        bodyHtml: { type: string }
+        sourceUrl: { type: string, format: uri }
+
+    BookshelfEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        novel: { $ref: "#/components/schemas/Novel" }
+        status: { $ref: "#/components/schemas/ShelfStatus" }
+        isFavorite: { type: boolean }
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
+        addedAt: { type: string, format: date-time }
+
+    ReadingPosition:
+      type: object
+      properties:
+        novelId: { type: string, format: uuid }
+        chapterId: { type: string, format: uuid }
+        scrollPosition: { type: number, format: float }
+        lastReadAt: { type: string, format: date-time }
+
+    ReadingHistoryItem:
+      type: object
+      properties:
+        novelId: { type: string, format: uuid }
+        chapterId: { type: string, format: uuid }
+        title: { type: string }
+        readAt: { type: string, format: date-time }
+        durationSeconds: { type: integer }
+
+    BookmarkInput:
+      type: object
+      required: [chapterId, name]
+      properties:
+        chapterId: { type: string, format: uuid }
+        name: { type: string }
+        memo: { type: string }
+        scrollPosition: { type: number, format: float }
+        tagIds:
+          type: array
+          items: { type: string, format: uuid }
+
+    Bookmark:
+      allOf:
+        - $ref: "#/components/schemas/BookmarkInput"
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            novelId: { type: string, format: uuid, description: "対象話が属する作品ID（読書画面への遷移用）" }
+            chapterNo: { type: integer }
+            chapterTitle: { type: string }
+            createdAt: { type: string, format: date-time }
+
+    Tag:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    UserSettings:
+      type: object
+      properties:
+        darkMode: { type: boolean }
+        writingMode: { type: string, enum: [VERTICAL, HORIZONTAL] }
+        fontFamily: { type: string, enum: [MINCHO, GOTHIC] }
+        fontSize: { type: integer }
+        lineHeight: { type: number, format: float }
+        marginSize: { type: string }
+        backgroundColor: { type: string }
+        theme: { type: string }
+        pageMode: { type: string, enum: [PAGINATION, SCROLL] }
+        shelfSortOrder: { type: string }
+
+    StatsSummary:
+      type: object
+      properties:
+        totalCompletedNovels: { type: integer }
+        totalReadChapters: { type: integer }
+        totalReadingSeconds: { type: integer }
+
+    StatsBreakdownItem:
+      type: object
+      properties:
+        label: { type: string }
+        readingSeconds: { type: integer }
+
+    CalendarDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        readingSeconds: { type: integer }
+
+    OfflineSavePreference:
+      type: object
+      properties:
+        chapterId: { type: string, format: uuid }
+        autoCached: { type: boolean }
+        requestedAt: { type: string, format: date-time }
