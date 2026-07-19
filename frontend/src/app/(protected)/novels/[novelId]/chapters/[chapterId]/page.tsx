@@ -28,6 +28,8 @@ export default function ReaderPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  // 読書画面はイマーシブ表示にする: ヘッダー/フッターは既定で隠しておき、本文をタップしたときだけ表示する。
+  const [chromeVisible, setChromeVisible] = useState(false);
   const [bookmarkScroll, setBookmarkScroll] = useState(0);
   const [fromCache, setFromCache] = useState(false);
 
@@ -53,6 +55,9 @@ export default function ReaderPage() {
       if (cancelled) return;
       setIsLoading(true);
       setError(null);
+      // 話が切り替わったら、イマーシブ表示を毎回既定の非表示状態からやり直す。
+      setChromeVisible(false);
+      setShowSettings(false);
       startedAtRef.current = Date.now();
       // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
       // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
@@ -206,70 +211,15 @@ export default function ReaderPage() {
   const paddingClass = MARGIN_PADDING[settings.marginSize] ?? MARGIN_PADDING.MEDIUM;
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm">
-        <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
-          <ChevronLeftIcon className="h-4 w-4" /> 戻る
-        </button>
-        <span className="truncate px-2 text-xs text-muted">
-          {currentChapter ? `第${currentChapter.chapterNo}話 / ${chapters.length}話` : ""}
-          {fromCache && " ・ オフライン"}
-        </span>
-        <div className="flex items-center gap-3">
-          <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
-            話一覧
-          </Link>
-          <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
-            Aa
-          </button>
-        </div>
-      </header>
-
-      {showSettings && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 text-xs">
-          <button
-            onClick={() => update({ writingMode: settings.writingMode === "VERTICAL" ? "HORIZONTAL" : "VERTICAL" })}
-            className="rounded-full border border-border px-3 py-1"
-          >
-            {settings.writingMode === "VERTICAL" ? "縦書き" : "横書き"}
-          </button>
-          <button
-            onClick={() => update({ fontFamily: settings.fontFamily === "MINCHO" ? "GOTHIC" : "MINCHO" })}
-            className="rounded-full border border-border px-3 py-1"
-          >
-            {settings.fontFamily === "MINCHO" ? "明朝" : "ゴシック"}
-          </button>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => update({ fontSize: Math.max(12, settings.fontSize - 1) })}
-              className="h-6 w-6 rounded-full border border-border"
-            >
-              −
-            </button>
-            <span>{settings.fontSize}px</span>
-            <button
-              onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
-              className="h-6 w-6 rounded-full border border-border"
-            >
-              ＋
-            </button>
-          </div>
-          <button onClick={() => update({ darkMode: !settings.darkMode })} className="rounded-full border border-border px-3 py-1">
-            {settings.darkMode ? "ライトモード" : "ダークモード"}
-          </button>
-          <button
-            onClick={() => {
-              setBookmarkScroll(computeScrollFraction());
-              bookmarkDialogRef.current?.showModal();
-            }}
-            className="ml-auto rounded-full bg-accent px-3 py-1 font-semibold text-accent-foreground"
-          >
-            しおりを追加
-          </button>
-        </div>
-      )}
-
-      <div ref={scrollRef} className={`min-h-0 flex-1 overflow-auto ${paddingClass} py-6`}>
+    <div className="relative h-dvh overflow-hidden bg-background">
+      <div
+        ref={scrollRef}
+        onClick={() => {
+          setChromeVisible((v) => !v);
+          setShowSettings(false);
+        }}
+        className={`absolute inset-0 overflow-auto ${paddingClass} py-6`}
+      >
         {isLoading ? (
           <p className="text-center text-sm text-muted">読み込み中...</p>
         ) : error ? (
@@ -294,7 +244,81 @@ export default function ReaderPage() {
         )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-border px-4 py-2.5">
+      {/* ヘッダーと設定パネルは1つのブロックとしてまとめて画面上端からスライドイン/アウトさせる。
+          本文タップで表示・非表示を切り替えるイマーシブ表示（既定は非表示）。 */}
+      <div
+        className={`absolute inset-x-0 top-0 z-10 transition-transform duration-200 ${
+          chromeVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
+          <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
+            <ChevronLeftIcon className="h-4 w-4" /> 戻る
+          </button>
+          <span className="truncate px-2 text-xs text-muted">
+            {currentChapter ? `第${currentChapter.chapterNo}話 / ${chapters.length}話` : ""}
+            {fromCache && " ・ オフライン"}
+          </span>
+          <div className="flex items-center gap-3">
+            <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
+              話一覧
+            </Link>
+            <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
+              Aa
+            </button>
+          </div>
+        </header>
+
+        {showSettings && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 text-xs">
+            <button
+              onClick={() => update({ writingMode: settings.writingMode === "VERTICAL" ? "HORIZONTAL" : "VERTICAL" })}
+              className="rounded-full border border-border px-3 py-1"
+            >
+              {settings.writingMode === "VERTICAL" ? "縦書き" : "横書き"}
+            </button>
+            <button
+              onClick={() => update({ fontFamily: settings.fontFamily === "MINCHO" ? "GOTHIC" : "MINCHO" })}
+              className="rounded-full border border-border px-3 py-1"
+            >
+              {settings.fontFamily === "MINCHO" ? "明朝" : "ゴシック"}
+            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => update({ fontSize: Math.max(12, settings.fontSize - 1) })}
+                className="h-6 w-6 rounded-full border border-border"
+              >
+                −
+              </button>
+              <span>{settings.fontSize}px</span>
+              <button
+                onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
+                className="h-6 w-6 rounded-full border border-border"
+              >
+                ＋
+              </button>
+            </div>
+            <button onClick={() => update({ darkMode: !settings.darkMode })} className="rounded-full border border-border px-3 py-1">
+              {settings.darkMode ? "ライトモード" : "ダークモード"}
+            </button>
+            <button
+              onClick={() => {
+                setBookmarkScroll(computeScrollFraction());
+                bookmarkDialogRef.current?.showModal();
+              }}
+              className="ml-auto rounded-full bg-accent px-3 py-1 font-semibold text-accent-foreground"
+            >
+              しおりを追加
+            </button>
+          </div>
+        )}
+      </div>
+
+      <footer
+        className={`absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
+          chromeVisible ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
         <button
           onClick={() => goTo(nextChapter)}
           disabled={!nextChapter}

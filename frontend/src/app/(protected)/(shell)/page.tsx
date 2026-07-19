@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
-import { BookCover } from "@/components/BookCover";
 import { ChartIcon, HeartIcon, PlusIcon } from "@/components/icons";
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfStatus } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
@@ -131,29 +130,26 @@ export default function BookshelfPage() {
           まだ作品がありません。右上の「＋」からURLを追加してください。
         </p>
       ) : (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+        <div className="flex flex-col divide-y divide-border">
           {visibleEntries.map((entry) => (
-            <div key={entry.id} className="flex flex-col gap-1.5">
-              <Link href={`/novels/${entry.novel.id}`} className="relative block">
-                <BookCover novelId={entry.novel.id} title={entry.novel.title} className="w-full" />
-                {entry.novel.hasUpdate && (
-                  <span className="absolute left-1.5 top-1.5 rounded bg-update-tint px-1.5 py-0.5 text-[10px] font-bold text-update">
-                    更新
-                  </span>
-                )}
+            <div key={entry.id} className="flex items-center gap-2 py-3">
+              <Link href={`/novels/${entry.novel.id}`} className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  {entry.novel.hasUpdate && (
+                    <span className="shrink-0 rounded bg-update-tint px-1.5 py-0.5 text-[10px] font-bold text-update">
+                      更新
+                    </span>
+                  )}
+                  <p className="truncate text-sm font-semibold">{entry.novel.title}</p>
+                </div>
+                <p className="truncate text-xs text-muted">{entry.novel.author}</p>
               </Link>
-              <div className="flex items-start justify-between gap-1">
-                <Link href={`/novels/${entry.novel.id}`} className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-xs font-semibold leading-tight">{entry.novel.title}</p>
-                  <p className="truncate text-[11px] text-muted">{entry.novel.author}</p>
-                </Link>
-                <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替">
-                  <HeartIcon
-                    filled={entry.isFavorite}
-                    className={`h-4 w-4 shrink-0 ${entry.isFavorite ? "text-update" : "text-muted"}`}
-                  />
-                </button>
-              </div>
+              <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替" className="shrink-0">
+                <HeartIcon
+                  filled={entry.isFavorite}
+                  className={`h-5 w-5 ${entry.isFavorite ? "text-update" : "text-muted"}`}
+                />
+              </button>
             </div>
           ))}
         </div>
