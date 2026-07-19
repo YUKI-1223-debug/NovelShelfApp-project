@@ -15,6 +15,7 @@ SMTP送信方式（プロバイダ）が未決定のまま、SMTPプロトコル
 - バックエンド: `password_reset_tokens`テーブル（`V5__password_reset_tokens.sql`）、`PasswordResetService`（トークン発行・ハッシュ化保存・メール送信・確認・パスワード更新・既存セッション失効）、`POST /auth/password-reset/request`・`POST /auth/password-reset/confirm`エンドポイント。`spring-boot-starter-mail`を追加し、`novelshelf.mail.*`（`MAIL_HOST`/`MAIL_PORT`/`MAIL_USERNAME`/`MAIL_PASSWORD`/`MAIL_FROM`/`FRONTEND_BASE_URL`/`PASSWORD_RESET_TTL_MINUTES`）で設定する。
 - フロントエンド: `/forgot-password`（メールアドレス入力、アカウント存在有無に関わらず同じ結果表示）・`/reset-password`（トークン付きリンクから新パスワード設定、成功後ログイン画面へ自動遷移）ページを追加。ログイン画面に導線を追加。
 - テスト: `PasswordResetServiceTest`（正常系・期限切れ・使用済み・不正トークンの単体テスト）、`AuthFlowIntegrationTest`にエンドポイントレベルの統合テストを追加。**MailHog（使い捨てのDockerコンテナ）を一時的にSMTP送信先にしてPlaywrightで実際にブラウザ操作し、メール受信→リンククリック→パスワード再設定→旧パスワードでログイン失敗→新パスワードでログイン成功、という一連の流れを実際に確認した**（本番構成にMailHogは含めない）。
+- **本番障害と復旧（デプロイ直後、2026-07-19）**: この機能を本番デプロイした直後、`MAIL_HOST`未設定によりSpring Bootのメールヘルスチェックが失敗 → `/actuator/health`全体がDOWN → Dockerの`healthcheck`失敗 → `nginx`が`backend`の起動待ちで上がれず、`https://novelshelf.jp`が数分間応答しなくなった。`management.health.mail.enabled: false`で修正しhotfixとして即座に再デプロイ、復旧を確認した（詳細・教訓は[DECISIONS.md](DECISIONS.md)参照）。
 
 ## 完了した作業（対応サイト拡大: カクヨム・ハーメルン、2026-07-19）
 

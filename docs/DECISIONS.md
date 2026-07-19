@@ -14,6 +14,8 @@
 
 **採用しなかった案**: プロバイダを先に決めてから実装する案 → SMTPという共通プロトコルの上に薄い設定層を作るだけで済むため、プロバイダ選定を待つ理由がないと判断した。
 
+**インシデント（本番障害、2026-07-19）**: この機能を本番デプロイした直後、サイト全体が数分間ダウンした。`spring-boot-starter-mail`が自動追加する`MailHealthIndicator`が`/actuator/health`の一部としてSMTP接続テストを行うが、`MAIL_HOST`未設定（ユーザーがまだプロバイダを決めていないため、想定どおりの状態）だとこのテストが失敗し、health全体がDOWNになった。Dockerの`healthcheck`（`curl -f .../actuator/health`）がこれを検知して`backend`コンテナを「unhealthy」と判定し、`nginx`は`depends_on: backend healthy`のため起動できず、サイト全体（`https://novelshelf.jp`）が応答しなくなった。開発機のローカルDocker環境ではこのヘルスチェックの詳細を確認しておらず、実際にデプロイして初めて気づいた。`management.health.mail.enabled: false`でメールの健全性を全体のhealthから切り離して解消（メール送信可否は`PasswordResetService`側で個別にハンドリング済みのため、アプリ全体の健全性とは無関係と判断）。**教訓**: 新しい依存関係（特に`spring-boot-starter-*`系のautoconfigure）を追加する際は、それが`/actuator/health`に暗黙で寄与しないか確認すること。ローカルのdocker-compose環境でも`docker compose ps`でhealthy/unhealthyを確認してからデプロイする。
+
 ---
 
 ## 2026-07-19: カクヨム・ハーメルンに対応、pixiv小説は対応しない（規約調査の結果）
