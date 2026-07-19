@@ -12,7 +12,7 @@
 
 ユーザー報告の不具合3件の対応と、オフライン対応の拡張を実施。
 
-- **①なろう本文取得バグ**: 前書きのある話で、本文の代わりに前書きが表示される不具合を修正。`div.p-novel__text`の最初の一致を本文として取得していたが、前書き(`p-novel__text--preface`)・あとがき(`p-novel__text--afterword`)も同じ基底クラスを持ち、前書きがある話では本文より先に出現するため誤取得していた。`:not()`で修飾クラスを除外して解決（`NarouAdapter.java`）。実サイトへの疎通テスト(`./gradlew externalTest`)で確認済み。
+- **①なろう本文取得バグ**: 前書きのある話で、本文の代わりに前書きが表示される不具合を修正。`div.p-novel__text`の最初の一致を本文として取得していたが、前書き(`p-novel__text--preface`)・あとがき(`p-novel__text--afterword`)も同じ基底クラスを持ち、前書きがある話では本文より先に出現するため誤取得していた。`:not()`で修飾クラスを除外して解決（`NarouAdapter.java`）。実サイトへの疎通テスト(`./gradlew externalTest`)で確認済み。**追加対応**: デプロイ後もユーザーが同じ話（`n6587bm/3`、前書き・あとがき両方あり）で再現すると報告。調査の結果バックエンドは正しく修正されており（実疎通テストで本文7935文字を確認）、原因はフロントエンドの読書画面がオフラインキャッシュ優先（キャッシュがあればネットワークへ行かない）実装だったため、バグ調査中に開いた際の誤ったキャッシュが残り続けていたことと判明。ネットワーク優先＋オフライン時のみキャッシュにフォールバックする方式に変更した（詳細は[DECISIONS.md](DECISIONS.md)参照）。この変更により、キャッシュ済みの話も次回オンライン時に自動で最新化される。回帰テスト（`fetchChapterContentExcludesPrefaceAndAfterwordWhenBothPresent`、`n6587bm/3`使用）を`NarouAdapterLiveTest`に追加。
 - **②iPhone/Androidで縦書き話がスクロールできない不具合**: 縦書きコンテナが`flex justify-end`だったため、はみ出た本文がflexboxの仕様上スクロール不可能な領域に隠れていた。`ml-auto`+`min-h-0`に変更して解消。iPhoneビューポート(Playwright)でのスクリーンショット確認済み。詳細は[DECISIONS.md](DECISIONS.md)参照。
 - **③なろうR18サイト対応**: ノクターン/ムーンライト/ミッドナイトノベルズ(`novel18.syosetu.com`)に対応。R18小説API・年齢確認クッキー(`over18=yes`)を追加。実疎通確認の過程で「R18 APIには作者の数値ID(userid)が含まれない」ことが判明し、作者名文字列を代替キーとする対応も実施（既知の制約、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。実際のR18作品(`n3638hn`)で本文取得まで確認済み。`NarouAdapterLiveTest`にR18向けテストを追加（実ncode指定時のみ実行、未指定時はスキップ）。詳細は[DECISIONS.md](DECISIONS.md)参照。
 - **オフライン対応の拡張**: IndexedDBのスキーマを`db.ts`に一元化。本棚一覧のオフラインキャッシュ表示（`shelfCache.ts`、ネットワーク断時に最後の取得結果を表示）、読書位置更新のオフラインキュー（`positionQueue.ts`、オンライン復帰時に自動再送、`OfflinePositionSync`コンポーネントで`online`イベントを監視）を追加。

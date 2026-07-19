@@ -59,6 +59,13 @@ class NarouAdapterLiveTest {
     }
 
     @Test
+    void fetchChapterContentExcludesPrefaceAndAfterwordWhenBothPresent() {
+        // 前書き・あとがきの両方がある話(n6587bm/3)で、本文のみが取得できることを確認する回帰テスト。
+        ExternalChapterContent content = adapter.fetchChapterContent("n6587bm", "3");
+        assertThat(content.bodyHtml().length()).isGreaterThan(3000);
+    }
+
+    @Test
     void resolveR18NovelReturnsRealMetadata() {
         assumeTrue(KNOWN_R18_NCODE != null, "narouR18Ncode システムプロパティ未指定のためスキップ");
 

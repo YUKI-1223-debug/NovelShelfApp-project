@@ -67,14 +67,9 @@ export default function ReaderPage() {
         })
         .catch(() => {});
 
-      const cached = await getCachedChapter(chapterId);
-      if (cached && !cancelled) {
-        setTitle(cached.title);
-        setBodyHtml(cached.bodyHtml);
-        setFromCache(true);
-        setIsLoading(false);
-        return;
-      }
+      // オフラインキャッシュは「ネットワークが使えない場合のフォールバック」としてのみ使う。
+      // キャッシュを優先すると、サーバー側で本文が更新（誤字修正・不具合修正等）されても
+      // 二度と反映されなくなってしまうため（2026-07-19、ユーザー報告で判明）。
       try {
         const content = await novelsApi.content(chapterId);
         if (cancelled) return;
@@ -91,7 +86,19 @@ export default function ReaderPage() {
           sourceUrl: content.sourceUrl,
         }).catch(() => {});
       } catch (err) {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : "本文の取得に失敗しました。");
+        if (cancelled) return;
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          const cached = await getCachedChapter(chapterId);
+          if (!cancelled && cached) {
+            setTitle(cached.title);
+            setBodyHtml(cached.bodyHtml);
+            setFromCache(true);
+          } else if (!cancelled) {
+            setError("本文の取得に失敗しました。");
+          }
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
