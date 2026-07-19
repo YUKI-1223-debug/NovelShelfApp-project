@@ -4,18 +4,14 @@ Claude Codeで対応可能な作業は含めない。ユーザー本人でない
 
 ## 今すぐ必要
 
-1. **【ブロッカー】GitHubリモートリポジトリの作成とpush**
-   Git設定完了、初回コミット済み（`c1fdbcd`、210ファイル）。`gh` CLIが未インストールのため、以下の手順で手動作成してください。
-   1. GitHubで新しいリポジトリを作成（https://github.com/new 、Public/Privateはお好みで、README/`.gitignore`/LICENSEは追加しない＝空のリポジトリにする）
-   2. リポジトリ作成後に表示されるURLを使い、以下をこのディレクトリで実行:
-      ```
-      git remote add origin <あなたのリポジトリのURL>
-      git branch -M main
-      git push -u origin main
-      ```
-   完了したらVPSでの`git clone`（`docs/DEPLOY.md`ステップ2以降）に進みます。
-
-   コミット時の補足: コミット直前のレビューで、Nginx TLS動作確認用に一時生成した自己署名証明書の秘密鍵が`docs/`に紛れ込んでいるのを発見し、コミットから除外・削除しました（VPSのSSH鍵とは別物、push前だったので実害なし）。今後同様の一時ファイルを誤ってコミットしないよう`.gitignore`に`*.pem`/`*.key`を追加済みです。
+1. **【ブロッカー】VPS上でのリポジトリclone（`docs/DEPLOY.md`ステップ2）**
+   GitHubへのpushが完了しました（`YUKI-1223-debug/NovelShelfApp-project`、Public、認証不要でclone可能）。以下をVPS上のSSHセッションで実行してください。
+   ```
+   ssh -i ~/.ssh/novelshelf_vps user@163.44.116.137
+   git clone https://github.com/YUKI-1223-debug/NovelShelfApp-project.git
+   cd NovelShelfApp-project
+   ```
+   完了したら教えてください。次はステップ3（`.env`の設定）に進みます。
 
 2. **ブラウザでの実機確認（任意、ただし推奨）**
    `http://localhost:3002` （Docker Composeを起動したままにしています）にアクセスし、実際に使ってみてください。
@@ -32,6 +28,7 @@ Claude Codeで対応可能な作業は含めない。ユーザー本人でない
 
 ## 完了済み
 
+- ~~GitHubリモートリポジトリの作成とpush~~ → `YUKI-1223-debug/NovelShelfApp-project`（Public）を作成しpush完了（2026-07-19）。
 - ~~ドメイン取得~~ → `novelshelf.jp` を取得済み（2026-07-18）。Phase6で`.env`の`DOMAIN`・Nginx/TLS設定に反映する。
 - ~~ConoHa VPSの契約とIPアドレスの共有~~ → 契約完了、IP: `163.44.116.137`（2026-07-19）。VPS初期設定（SSH鍵化・パスワード認証無効化・ファイアウォール・Docker導入・スワップ追加）まで完了。
 

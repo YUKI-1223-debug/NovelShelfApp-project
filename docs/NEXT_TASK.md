@@ -2,15 +2,14 @@
 
 ## 状況
 
-Phase6（デプロイ）作業中。ConoHa VPS契約済み・IP判明（`163.44.116.137`）、DNS設定済み、VPS初期設定（SSH鍵化・ファイアウォール・Docker・スワップ）まで完了。Git初回コミット完了（`c1fdbcd`、210ファイル）。**GitHubリモートリポジトリの作成とpushがユーザー対応待ち**（[USER_TODO.md](USER_TODO.md)参照。`gh` CLIが未インストールのため手動作成が必要）。
+Phase6（デプロイ）作業中。ConoHa VPS契約済み・IP判明（`163.44.116.137`）、DNS設定済み、VPS初期設定（SSH鍵化・ファイアウォール・Docker・スワップ）まで完了。Git初回コミット完了（`c1fdbcd`、210ファイル）、GitHubリモート`YUKI-1223-debug/NovelShelfApp-project`(Public)へpush完了。**次はVPS上での`git clone`とデプロイ実行**（[docs/DEPLOY.md](DEPLOY.md)ステップ2以降）。
 
 ## 次に行うこと（優先順位順）
 
-1. **[ブロッカー] `docs/USER_TODO.md`の項目1（GitHubリモート作成・push）を待つ。**
-2. push確認後、VPS上（`user@163.44.116.137`）で`git clone`し、`docs/DEPLOY.md`ステップ2以降（環境変数設定→TLS証明書取得→起動確認→自動更新設定）を進める。
+1. VPS上（`user@163.44.116.137`）で`git clone https://github.com/YUKI-1223-debug/NovelShelfApp-project.git`し、`docs/DEPLOY.md`ステップ3以降（環境変数設定→TLS証明書取得→起動確認→自動更新設定）を進める。
    - ステップ3の`.env`設定時、`POSTGRES_PASSWORD`/`JWT_SECRET`を必ず変更すること
    - ステップ4のTLS証明書取得はDNSが`novelshelf.jp`→`163.44.116.137`に反映済みなのでそのまま進行可能
-3. デプロイ後、`.github/workflows/ci.yml`が実際に動くか初回pushで確認する。
+2. デプロイ後、`.github/workflows/ci.yml`が実際に動くか初回pushで確認する。
 
 ## 実装方針
 

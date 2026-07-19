@@ -4,7 +4,7 @@
 
 ## 現在の進捗
 
-Phase1〜Phase5完了。Phase6（デプロイ）はConoHa VPS契約済み（IP: `163.44.116.137`）、VPS初期設定（SSH鍵化・パスワード認証無効化・root直接ログイン無効化・ファイアウォール・Docker導入・スワップ2GB追加）まで完了。ユーザーがGit設定（`user.name`/`user.email`）を行い、**Gitの初回コミット完了**（`c1fdbcd`、210ファイル）。**次はGitHubリモートリポジトリの作成とpush（ユーザー対応、[USER_TODO.md](USER_TODO.md)参照）でブロック中**。
+Phase1〜Phase5完了。Phase6（デプロイ）はConoHa VPS契約済み（IP: `163.44.116.137`）、VPS初期設定（SSH鍵化・パスワード認証無効化・root直接ログイン無効化・ファイアウォール・Docker導入・スワップ2GB追加）まで完了。Gitの初回コミット完了（`c1fdbcd`、210ファイル）、GitHubリモートリポジトリ`YUKI-1223-debug/NovelShelfApp-project`を作成しpush完了（`main`ブランチ、2026-07-19）。**次はVPS上での`git clone`とデプロイ実行（[docs/DEPLOY.md](DEPLOY.md)ステップ2以降）**。
 
 ## 完了した作業（Phase6: デプロイ — 初回コミット、2026-07-19）
 
