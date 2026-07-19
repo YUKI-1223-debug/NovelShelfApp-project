@@ -55,7 +55,7 @@ function SharePageContent() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
       {result.status === "loading" && <p className="text-sm text-muted">本棚に追加しています...</p>}
 
       {result.status === "success" && (

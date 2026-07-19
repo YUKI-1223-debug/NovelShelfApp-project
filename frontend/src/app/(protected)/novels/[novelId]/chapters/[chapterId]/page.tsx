@@ -165,17 +165,48 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId]);
 
-  function goTo(chapter: Chapter | undefined) {
-    if (!chapter) return;
-    saveProgress();
-    router.push(`/novels/${novelId}/chapters/${chapter.id}`);
-  }
+  const goTo = useCallback(
+    (chapter: Chapter | undefined) => {
+      if (!chapter) return;
+      saveProgress();
+      router.push(`/novels/${novelId}/chapters/${chapter.id}`);
+    },
+    [saveProgress, router, novelId]
+  );
+
+  // 本文の最後までスクロールしたあと、さらにスクロールしようとしたら次の話へ自動的に移動する。
+  // 「最後に到達した瞬間」ではなく、そこからさらに一定時間スクロール操作が続いた場合のみ発火させることで、
+  // 最終行を読み終えた直後に意図せず次の話へ飛んでしまうのを防ぐ。
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !nextChapter) return;
+    let reachedEndAt: number | null = null;
+    let advanced = false;
+
+    function handleScroll() {
+      if (advanced) return;
+      const fraction = computeScrollFraction() / 100;
+      if (fraction >= 0.995) {
+        if (reachedEndAt === null) {
+          reachedEndAt = Date.now();
+        } else if (Date.now() - reachedEndAt > 400) {
+          advanced = true;
+          goTo(nextChapter);
+        }
+      } else {
+        reachedEndAt = null;
+      }
+    }
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [chapterId, nextChapter, computeScrollFraction, goTo]);
 
   const fontClass = settings.fontFamily === "MINCHO" ? "reader-text-mincho" : "reader-text-gothic";
   const paddingClass = MARGIN_PADDING[settings.marginSize] ?? MARGIN_PADDING.MEDIUM;
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm">
         <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
           <ChevronLeftIcon className="h-4 w-4" /> 戻る
@@ -184,9 +215,14 @@ export default function ReaderPage() {
           {currentChapter ? `第${currentChapter.chapterNo}話 / ${chapters.length}話` : ""}
           {fromCache && " ・ オフライン"}
         </span>
-        <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
-          Aa
-        </button>
+        <div className="flex items-center gap-3">
+          <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
+            話一覧
+          </Link>
+          <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
+            Aa
+          </button>
+        </div>
       </header>
 
       {showSettings && (
@@ -260,21 +296,18 @@ export default function ReaderPage() {
 
       <footer className="flex items-center justify-between border-t border-border px-4 py-2.5">
         <button
-          onClick={() => goTo(prevChapter)}
-          disabled={!prevChapter}
-          className="flex items-center gap-1 text-sm text-muted disabled:opacity-30"
-        >
-          <ChevronLeftIcon className="h-4 w-4" /> 前の話
-        </button>
-        <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
-          話一覧
-        </Link>
-        <button
           onClick={() => goTo(nextChapter)}
           disabled={!nextChapter}
           className="flex items-center gap-1 text-sm text-muted disabled:opacity-30"
         >
           次の話 <ChevronRightIcon className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => goTo(prevChapter)}
+          disabled={!prevChapter}
+          className="flex items-center gap-1 text-sm text-muted disabled:opacity-30"
+        >
+          <ChevronLeftIcon className="h-4 w-4" /> 前の話
         </button>
       </footer>
 

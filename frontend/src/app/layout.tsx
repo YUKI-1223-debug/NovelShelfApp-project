@@ -13,6 +13,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // ネイティブアプリに近い操作感にするため、ページ全体のピンチ/ダブルタップズームは無効化する。
+  // 文字サイズの調整は設定画面のフォントサイズ機能で行う想定（docs/DECISIONS.md参照）。
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f0ece2" },
     { media: "(prefers-color-scheme: dark)", color: "#1b1a17" },

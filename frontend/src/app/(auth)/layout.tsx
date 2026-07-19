@@ -3,7 +3,7 @@ import { RedirectIfAuthenticated } from "@/lib/auth/RedirectIfAuthenticated";
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <RedirectIfAuthenticated>
-      <main className="flex min-h-screen flex-1 flex-col items-center justify-center bg-background px-6 py-12">
+      <main className="flex min-h-dvh flex-1 flex-col items-center justify-center bg-background px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">NovelShelf</h1>

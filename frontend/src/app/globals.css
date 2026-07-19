@@ -66,10 +66,32 @@
   border-color: var(--border);
 }
 
+html {
+  /* スマホでスクロールが端に達したときのバウンス(ラバーバンド)がページ全体に伝播しないようにする。
+     各画面側のスクロール可能領域(読書画面の本文等)は個別にoverflow-autoしているので、
+     そちらのスクロールは引き続き機能する。 */
+  overscroll-behavior-y: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+  /* ダブルタップズーム待ちの遅延をなくし、ネイティブアプリに近いタップの反応にする
+     （ピンチズーム自体はviewport meta(maximumScale/userScalable)側で無効化済み）。 */
+  touch-action: manipulation;
+}
+
+/* iOS Safariはinput/select/textareaの実効フォントサイズが16px未満だと、フォーカス時に
+   ページ全体を自動でズームしてしまう。デザイン上の文字サイズ(text-sm等)は変えたいが、
+   その自動ズームだけは起きてほしくないため、フォーム要素だけ実効サイズを16px以上に固定する。 */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 .reader-text-mincho {
