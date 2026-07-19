@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
@@ -10,11 +10,13 @@ import {
   novelsApi,
   readingApi,
   shelfApi,
+  tagsApi,
   type BookshelfEntry,
   type Chapter,
   type NovelDetail,
   type ReadingPosition,
   type ShelfStatus,
+  type Tag,
 } from "@/lib/api";
 import { putCachedChapter } from "@/lib/offline/chapterCache";
 
@@ -39,6 +41,9 @@ export default function NovelDetailPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [savingTag, setSavingTag] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -68,6 +73,12 @@ export default function NovelDetailPage() {
     queueMicrotask(() => load());
   }, [load]);
 
+  useEffect(() => {
+    queueMicrotask(() => {
+      tagsApi.list().then(setAllTags).catch(() => {});
+    });
+  }, []);
+
   async function addToShelf() {
     const entry = await shelfApi.add(novelId, "READING");
     setShelfEntry(entry);
@@ -83,6 +94,39 @@ export default function NovelDetailPage() {
     if (!shelfEntry) return;
     await shelfApi.remove(shelfEntry.id);
     setShelfEntry(null);
+  }
+
+  async function addTag(e: FormEvent) {
+    e.preventDefault();
+    const name = tagInput.trim();
+    if (!name || !shelfEntry) return;
+    setSavingTag(true);
+    try {
+      let tag = allTags.find((t) => t.name === name);
+      if (!tag) {
+        tag = await tagsApi.create(name);
+        setAllTags((prev) => [...prev, tag as Tag]);
+      }
+      if (shelfEntry.tags.some((t) => t.id === tag!.id)) {
+        setTagInput("");
+        return;
+      }
+      const tagIds = [...shelfEntry.tags.map((t) => t.id), tag.id];
+      const updated = await shelfApi.update(shelfEntry.id, { tagIds });
+      setShelfEntry(updated);
+      setTagInput("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "タグの追加に失敗しました。");
+    } finally {
+      setSavingTag(false);
+    }
+  }
+
+  async function removeTag(tagId: string) {
+    if (!shelfEntry) return;
+    const tagIds = shelfEntry.tags.filter((t) => t.id !== tagId).map((t) => t.id);
+    const updated = await shelfApi.update(shelfEntry.id, { tagIds });
+    setShelfEntry(updated);
   }
 
   function startEditingTitle() {
@@ -216,6 +260,44 @@ export default function NovelDetailPage() {
                   {STATUS_LABEL[s]}
                 </button>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {shelfEntry.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="flex items-center gap-1 rounded-full bg-accent-tint px-2.5 py-1 text-[11px] font-medium text-accent-soft"
+                >
+                  {tag.name}
+                  <button
+                    onClick={() => removeTag(tag.id)}
+                    aria-label={`タグ「${tag.name}」を削除`}
+                    className="text-accent-soft/70 hover:text-accent-soft"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <form onSubmit={addTag} className="flex items-center gap-1">
+                <input
+                  list="existing-tags"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="タグを追加"
+                  className="w-24 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] outline-none focus:border-accent"
+                />
+                <button
+                  type="submit"
+                  disabled={savingTag || !tagInput.trim()}
+                  className="text-[11px] font-semibold text-accent-soft disabled:opacity-40"
+                >
+                  追加
+                </button>
+              </form>
+              <datalist id="existing-tags">
+                {allTags.map((tag) => (
+                  <option key={tag.id} value={tag.name} />
+                ))}
+              </datalist>
             </div>
             <button onClick={removeFromShelf} className="text-xs text-muted underline underline-offset-2">
               本棚から削除
