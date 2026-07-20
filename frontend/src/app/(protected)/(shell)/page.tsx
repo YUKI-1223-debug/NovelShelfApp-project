@@ -8,12 +8,24 @@ import { ApiError, shelfApi, type BookshelfEntry, type ShelfStatus } from "@/lib
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 
 type FilterKey = "ALL" | ShelfStatus | "FAVORITE" | "UPDATED";
+type SortKey = "addedAt" | "recent";
 
 // サーバー側のフィルタ(shelfApi.list)と同じ条件をキャッシュデータに対して再現する。
 function filterCachedEntries(entries: BookshelfEntry[], key: FilterKey): BookshelfEntry[] {
   if (key === "FAVORITE") return entries.filter((e) => e.isFavorite);
   if (key === "ALL" || key === "UPDATED") return entries;
   return entries.filter((e) => e.status === key);
+}
+
+// サーバー側のsort=recentと同じ順序(最終閲読日時の降順、未読了は追加日時の降順で末尾)をキャッシュデータに対して再現する。
+function sortCachedEntries(entries: BookshelfEntry[], sort: SortKey): BookshelfEntry[] {
+  if (sort !== "recent") return entries;
+  return [...entries].sort((a, b) => {
+    if (a.lastReadAt && b.lastReadAt) return b.lastReadAt.localeCompare(a.lastReadAt);
+    if (a.lastReadAt) return -1;
+    if (b.lastReadAt) return 1;
+    return b.addedAt.localeCompare(a.addedAt);
+  });
 }
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -25,27 +37,34 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "UPDATED", label: "更新あり" },
 ];
 
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "addedAt", label: "追加順" },
+  { key: "recent", label: "最近読んだ順" },
+];
+
 export default function BookshelfPage() {
   const [entries, setEntries] = useState<BookshelfEntry[]>([]);
   const [filter, setFilter] = useState<FilterKey>("ALL");
+  const [sort, setSort] = useState<SortKey>("addedAt");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const load = useCallback(async (key: FilterKey) => {
+  const load = useCallback(async (key: FilterKey, sortKey: SortKey) => {
     setIsLoading(true);
     setError(null);
     setFromCache(false);
+    const sortParam = sortKey === "recent" ? "recent" : undefined;
     try {
       if (key === "FAVORITE") {
-        setEntries(await shelfApi.list({ favorite: true }));
+        setEntries(await shelfApi.list({ favorite: true, sort: sortParam }));
       } else if (key === "ALL" || key === "UPDATED") {
-        const result = await shelfApi.list();
+        const result = await shelfApi.list({ sort: sortParam });
         setEntries(result);
         putCachedShelf(result).catch(() => {});
       } else {
-        setEntries(await shelfApi.list({ status: key }));
+        setEntries(await shelfApi.list({ status: key, sort: sortParam }));
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -55,7 +74,7 @@ export default function BookshelfPage() {
       // ネットワーク自体の失敗(オフライン)。最後に取得できた本棚をキャッシュから表示する。
       const cached = await getCachedShelf();
       if (cached) {
-        setEntries(filterCachedEntries(cached, key));
+        setEntries(sortCachedEntries(filterCachedEntries(cached, key), sortKey));
         setFromCache(true);
       } else {
         setError("本棚の取得に失敗しました。");
@@ -66,8 +85,8 @@ export default function BookshelfPage() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => load(filter));
-  }, [filter, load]);
+    queueMicrotask(() => load(filter, sort));
+  }, [filter, sort, load]);
 
   const visibleEntries = filter === "UPDATED" ? entries.filter((e) => e.novel.hasUpdate) : entries;
 
@@ -76,7 +95,7 @@ export default function BookshelfPage() {
     try {
       await shelfApi.update(entry.id, { isFavorite: !entry.isFavorite });
     } catch {
-      load(filter);
+      load(filter, sort);
     }
   }
 
@@ -118,6 +137,23 @@ export default function BookshelfPage() {
         ))}
       </div>
 
+      <div className="flex items-center justify-end">
+        <label className="flex items-center gap-1.5 text-xs text-muted">
+          並び順
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-foreground"
+          >
+            {SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {error && <p className="text-sm text-update">{error}</p>}
       {fromCache && (
         <p className="text-xs text-muted">オフライン中のため、最後に取得した本棚を表示しています。</p>
@@ -143,6 +179,13 @@ export default function BookshelfPage() {
                   <p className="truncate text-sm font-semibold">{entry.novel.title}</p>
                 </div>
                 <p className="truncate text-xs text-muted">{entry.novel.author}</p>
+                {sort === "recent" && (
+                  <p className="truncate text-[11px] text-muted">
+                    {entry.lastReadAt
+                      ? `最終閲読: ${new Date(entry.lastReadAt).toLocaleDateString("ja-JP")}`
+                      : "未読"}
+                  </p>
+                )}
               </Link>
               <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替" className="shrink-0">
                 <HeartIcon
@@ -155,7 +198,7 @@ export default function BookshelfPage() {
         </div>
       )}
 
-      <AddNovelDialog ref={dialogRef} onAdded={() => load(filter)} />
+      <AddNovelDialog ref={dialogRef} onAdded={() => load(filter, sort)} />
     </div>
   );
 }

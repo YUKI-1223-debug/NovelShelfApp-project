@@ -56,11 +56,12 @@ export const novelsApi = {
 };
 
 export const shelfApi = {
-  list: (params?: { status?: ShelfStatus; favorite?: boolean; groupBy?: string }) => {
+  list: (params?: { status?: ShelfStatus; favorite?: boolean; groupBy?: string; sort?: "recent" }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
     if (params?.favorite !== undefined) qs.set("favorite", String(params.favorite));
     if (params?.groupBy) qs.set("groupBy", params.groupBy);
+    if (params?.sort) qs.set("sort", params.sort);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return apiFetch<BookshelfEntry[]>(`/shelf${suffix}`);
   },

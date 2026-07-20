@@ -73,6 +73,7 @@ export interface BookshelfEntry {
   isFavorite: boolean;
   tags: Tag[];
   addedAt: string;
+  lastReadAt: string | null;
 }
 
 export interface ReadingPosition {

@@ -7,4 +7,10 @@ import java.util.List;
 import java.util.UUID;
 
 public record BookshelfEntryResponse(
-        UUID id, NovelResponse novel, ShelfStatus status, boolean isFavorite, List<TagResponse> tags, Instant addedAt) {}
+        UUID id,
+        NovelResponse novel,
+        ShelfStatus status,
+        boolean isFavorite,
+        List<TagResponse> tags,
+        Instant addedAt,
+        Instant lastReadAt) {}

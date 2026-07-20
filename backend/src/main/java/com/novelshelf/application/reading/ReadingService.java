@@ -9,7 +9,9 @@ import com.novelshelf.domain.reading.ReadingPosition;
 import com.novelshelf.domain.reading.ReadingPositionRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,5 +70,13 @@ public class ReadingService {
     public List<ReadingHistory> recentHistory(UUID userId, int limit) {
         List<ReadingHistory> all = readingHistoryRepository.findByUserIdOrderByReadAtDesc(userId);
         return all.size() > limit ? all.subList(0, limit) : all;
+    }
+
+    public Map<UUID, Instant> lastReadAtByNovelIds(UUID userId, List<UUID> novelIds) {
+        if (novelIds.isEmpty()) {
+            return Map.of();
+        }
+        return readingPositionRepository.findByUserIdAndNovelIdIn(userId, novelIds).stream()
+                .collect(Collectors.toMap(ReadingPosition::getNovelId, ReadingPosition::getLastReadAt));
     }
 }

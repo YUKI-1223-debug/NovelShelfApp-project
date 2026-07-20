@@ -245,6 +245,12 @@ paths:
           schema:
             type: string
             enum: [author, series, site, tag]
+        - name: sort
+          in: query
+          description: recentを指定すると最終閲読日時(降順)で並び替える。未読了の作品は末尾(追加日時降順)。
+          schema:
+            type: string
+            enum: [recent]
       responses:
         "200":
           description: 成功
@@ -712,6 +718,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Tag" }
         addedAt: { type: string, format: date-time }
+        lastReadAt: { type: string, format: date-time, nullable: true }
 
     ReadingPosition:
       type: object
