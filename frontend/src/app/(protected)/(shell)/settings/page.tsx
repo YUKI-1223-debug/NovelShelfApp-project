@@ -142,12 +142,6 @@ export default function SettingsPage() {
               </SegButton>
             </div>
           </Row>
-          {settings.pageMode === "PAGINATION" && settings.writingMode === "VERTICAL" && (
-            <p className="border-b border-border bg-card px-4 py-2 text-xs text-muted">
-              ページ送りは現在横書きのみ対応しています。縦書きのままではスクロール表示になります。
-            </p>
-          )}
-
           <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">ヘルプ</p>
           <Link href="/settings/guide" className="border-b border-border px-4 py-3 text-sm">
             使い方ガイド

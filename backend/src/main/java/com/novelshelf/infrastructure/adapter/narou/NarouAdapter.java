@@ -1,6 +1,7 @@
 package com.novelshelf.infrastructure.adapter.narou;
 
 import com.novelshelf.domain.novel.NovelStatus;
+import com.novelshelf.domain.novel.SiteAccessBlockedException;
 import com.novelshelf.domain.novel.SiteCode;
 import com.novelshelf.domain.novel.UnresolvableNovelUrlException;
 import com.novelshelf.infrastructure.adapter.ExternalChapter;
@@ -231,6 +232,12 @@ public class NarouAdapter implements NovelSiteAdapter {
                     .cookie("over18", "yes")
                     .timeout(10_000)
                     .get();
+        } catch (org.jsoup.HttpStatusException e) {
+            // 403等はURLの形式が不正なのではなく、サイト側のBot対策等でアクセス自体を
+            // 拒否されているケースが多い（h.syosetu.orgでの同種事例で判明、
+            // docs/KNOWN_ISSUES.md参照）。「URLとして認識できない」という誤解を招く
+            // メッセージにならないよう区別する。
+            throw new SiteAccessBlockedException(url, e.getStatusCode());
         } catch (java.io.IOException e) {
             throw new UnresolvableNovelUrlException(url);
         }

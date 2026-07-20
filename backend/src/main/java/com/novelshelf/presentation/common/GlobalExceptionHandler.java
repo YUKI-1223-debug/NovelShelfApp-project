@@ -2,6 +2,7 @@ package com.novelshelf.presentation.common;
 
 import com.novelshelf.domain.common.NotFoundException;
 import com.novelshelf.domain.novel.ContentNotAvailableException;
+import com.novelshelf.domain.novel.SiteAccessBlockedException;
 import com.novelshelf.domain.novel.SiteNotSupportedException;
 import com.novelshelf.domain.novel.UnresolvableNovelUrlException;
 import com.novelshelf.domain.user.EmailAlreadyExistsException;
@@ -48,6 +49,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ContentNotAvailableException.class)
     public ResponseEntity<ErrorResponse> handleContentUnavailable(ContentNotAvailableException e) {
         return ResponseEntity.status(HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(SiteAccessBlockedException.class)
+    public ResponseEntity<ErrorResponse> handleSiteAccessBlocked(SiteAccessBlockedException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(e.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

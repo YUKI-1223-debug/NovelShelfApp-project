@@ -23,15 +23,20 @@ const MARGIN_PX: Record<string, number> = {
   LARGE: 40,
 };
 
-// 縦書き+ページ送りでは、CSS columns側の列幅計算(columnWidth/columnGap)をJS側で事前に
-// 予測してscrollLeftを算出する方式だと、ブラウザの内部レイアウト計算との間で数px単位の
-// ズレが生じ、ページ境界の文字が視覚的に見切れることがあった（実機検証で確認、
-// docs/DECISIONS.mdの2026-07-19エントリ参照）。そのため縦書きでは「予測」をやめ、
-// 実際にレンダリングされた各行の絶対x座標を直接測定し、行と行の間の実際の空白（＝本当に
-// 何も描画されていない領域）の中央にページ境界(scrollLeft)を置く方式にする。
-// 空白の中央である以上、多少の測定誤差があっても文字を切ることはない。
-function measureLineStartXs(articleEl: HTMLElement, scrollLeft: number): number[] {
-  const xs = new Set<number>();
+interface LineExtent {
+  left: number;
+  right: number;
+}
+
+// 実際にレンダリングされた本文中の各行の占有範囲(left〜right)を直接測定する（1文字ずつ
+// Rangeを作ってgetClientRects()を見る）。同じ行の文字は縦書きでは同一x（サブピクセル単位で
+// ほぼ一致）を共有するため、四捨五入したleftをキーに集約する。r.leftは文字グリフの左端
+// （中心ではない）であり、行と行の間の本当の空白の位置を正確に求めるにはrightも必要になる
+// （下のcomputeVerticalPageBoundaries参照）。CSS側の値をJS側で事前に「予測」する方式は、
+// ブラウザの内部レイアウト計算との間で数px単位のズレが生じることがあった（実機検証で確認、
+// docs/DECISIONS.mdの2026-07-19エントリ参照）ため、必ず実測値を使う。
+function measureVerticalLines(articleEl: HTMLElement, scrollLeft: number): LineExtent[] {
+  const lines = new Map<number, LineExtent>();
   const walker = document.createTreeWalker(articleEl, NodeFilter.SHOW_TEXT);
   let node: Node | null;
   while ((node = walker.nextNode())) {
@@ -43,9 +48,16 @@ function measureLineStartXs(articleEl: HTMLElement, scrollLeft: number): number[
       range.setEnd(node, i + 1);
       for (const r of range.getClientRects()) {
         if (r.width === 0 || r.height === 0) continue;
-        // 同じ行内の文字は縦書きでは同一x（サブピクセル単位でほぼ一致）を共有するため、
-        // 四捨五入して丸めることで同一行の文字を確実に同じ値へ集約する。
-        xs.add(Math.round(r.left + scrollLeft));
+        const left = r.left + scrollLeft;
+        const right = r.right + scrollLeft;
+        const key = Math.round(left);
+        const cur = lines.get(key);
+        if (cur) {
+          cur.left = Math.min(cur.left, left);
+          cur.right = Math.max(cur.right, right);
+        } else {
+          lines.set(key, { left, right });
+        }
       }
     }
   }
@@ -56,37 +68,52 @@ function measureLineStartXs(articleEl: HTMLElement, scrollLeft: number): number[
     if ((el.textContent ?? "").trim() !== "") continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
-    xs.add(Math.round(r.left + scrollLeft));
+    const left = r.left + scrollLeft;
+    const key = Math.round(left);
+    if (!lines.has(key)) lines.set(key, { left, right: r.right + scrollLeft });
   }
-  return [...xs].sort((a, b) => b - a); // 降順 = 読み順（右から左）
+  return [...lines.values()].sort((a, b) => b.left - a.left); // 降順 = 読み順（右から左）
 }
 
-// ページ(CSS多段組の列)境界を「行の間隔が明らかに広い場所」として実測値から直接検出する。
-// 事前に「1ページ何行」と決め打ちしない: 決め打ちした行数がブラウザの実際のレイアウトと
-// 1行でもズレると、境界が本文の途中に来てしまい文字が見切れる（実機検証で確認済み）。
-// 通常の行間(同じ列内)より明らかに広い間隔だけを本当のページ境界とみなす方が頑健。
-function computePageBoundariesFromLineXs(lineXs: number[], linePitch: number, scrollWidth: number): number[] {
-  if (lineXs.length === 0) return [0];
-  if (lineXs.length === 1) return [0];
-  const deltas: number[] = [];
-  for (let i = 1; i < lineXs.length; i++) {
-    deltas.push(lineXs[i - 1] - lineXs[i]);
-  }
-  const sorted = [...deltas].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)] || linePitch;
-  // 列間の隙間(column-gap)は通常の行間の1.4倍を大きく超えるはず。多少の実機ブレを
-  // 吸収しつつ、通常の行間と誤検出しないよう閾値を設定する。
-  const threshold = Math.max(median * 1.4, median + linePitch * 0.6);
+interface VerticalPageBoundary {
+  scrollLeft: number;
+  width: number;
+}
 
-  const boundaries: number[] = [];
-  for (let i = 0; i < deltas.length; i++) {
-    if (deltas[i] > threshold) {
-      boundaries.push((lineXs[i] + lineXs[i + 1]) / 2);
+// 縦書きページ送りは、CSS多段組(columns)を一切使わず、スクロールモードと同じ自然な
+// レイアウト（1本の連続した横スクロール帯）のまま、実測した各行の占有範囲を画面幅ぴったりに
+// 収まる行数ごとにグルーピングしてページを構成する。column-gapに一切依存しないため、
+// CSS多段組+vertical-rlの組み合わせで起きていたページ境界の文字見切れ問題（column-gapが
+// vertical-rlの多段組で正しく反映されない、実機検証で複数回確認済み。docs/DECISIONS.md参照）
+// を構造的に回避できる。
+//
+// 重要: 各ページのグループ幅は行の占有幅が離散的なため画面幅ぴったりにはならない
+// （通常やや狭い）。この差分を吸収するため、スクロール領域自体の幅を「画面幅」ではなく
+// 「そのページのグループ幅ちょうど」に動的に変え、中央寄せして表示する
+// （JSX側でoverflow:hiddenの内側コンテナ幅をページごとに切り替える）。これにより、
+// スクロール領域の外側に隣接ページの行がはみ出す余地が原理的に無くなり、
+// 見切れが起こり得ない（実測ベースの自動テストで複数のフォント設定・画面幅の組み合わせで
+// 見切れゼロを確認済み）。
+function computeVerticalPageBoundaries(lines: LineExtent[], viewportWidth: number, scrollWidth: number): VerticalPageBoundary[] {
+  const n = lines.length;
+  if (n === 0) return [{ scrollLeft: 0, width: Math.max(1, viewportWidth) }];
+  const boundaries: VerticalPageBoundary[] = [];
+  let start = 0;
+  while (start < n) {
+    let end = start;
+    while (end + 1 < n && lines[start].right - lines[end + 1].left <= viewportWidth) {
+      end++;
     }
+    // 1pxの安全マージンを両端に確保し、サブピクセル丸めの影響を吸収する。
+    const rawScrollLeft = Math.floor(lines[end].left) - 1;
+    const rawWidth = Math.ceil(lines[start].right - lines[end].left) + 2;
+    boundaries.push({
+      scrollLeft: Math.max(0, rawScrollLeft),
+      width: Math.min(viewportWidth, rawWidth, Math.max(1, scrollWidth)),
+    });
+    start = end + 1;
   }
-  // 最後のページは文書の本当の先頭(x=0)まで表示する。
-  boundaries.push(0);
-  return boundaries.map((b) => Math.max(0, Math.min(scrollWidth, b)));
+  return boundaries;
 }
 
 export default function ReaderPage() {
@@ -104,9 +131,11 @@ export default function ReaderPage() {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [bookmarkScroll, setBookmarkScroll] = useState(0);
   const [fromCache, setFromCache] = useState(false);
-  // ページ送りモード: CSS多段組(columns)で本文を「画面ぴったりの列」に分割し、
-  // scrollLeftを列幅ぶんずつ動かすことでページをめくる。列がscrollWidth方向に増える性質は
-  // 縦書き(vertical-rl)でも横書きでも変わらないことを実機検証済み（docs/DECISIONS.md参照）。
+  // ページ送りモード: 横書きはCSS多段組(columns)で本文を「画面ぴったりの列」に分割し、
+  // scrollLeftを列幅ぶんずつ動かすことでページをめくる。縦書きはCSS columnsを使わず、
+  // 実測した行位置ベースでページ境界を算出する（下のcomputeVerticalPageBoundaries参照。
+  // vertical-rl+columnsの組み合わせでcolumn-gapが正しく反映されない問題があったため。
+  // docs/DECISIONS.md参照）。
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -115,16 +144,18 @@ export default function ReaderPage() {
   // 一度自然なレイアウトでscrollWidthを測り、画面幅の整数倍に切り上げた値をwidthとして明示指定し
   // 再レイアウトさせることで、ブラウザに列幅を画面幅ちょうどへ強制的に揃え直させる（2パス測定）。
   const [pinnedWidth, setPinnedWidth] = useState<number | null>(null);
-  // 縦書き時のページ境界(scrollLeft目標値)。measureLineStartXs/computePageBoundariesFromLineXsで
+  // 縦書き時の各ページの(scrollLeft, 幅)。measureVerticalLines/computeVerticalPageBoundariesで
   // 実測して埋める。横書きはcolumnWidth+columnGap=画面幅の単純な等間隔で問題ないため使わない。
-  const pageBoundariesRef = useRef<number[]>([]);
-  // 縦書き+ページ送りは、実測ベースの境界検出に切り替えても文字の見切れが解消しなかった
-  // （column-gapがvertical-rlの多段組で正しく反映されていない可能性がある、実機検証中に
-  // 判明。docs/DECISIONS.md参照）。直るまでは縦書き時はスクロール表示にフォールバックする。
-  const isPaged = settings.pageMode === "PAGINATION" && settings.writingMode === "HORIZONTAL";
+  const pageBoundariesRef = useRef<VerticalPageBoundary[]>([]);
+  const isPaged = settings.pageMode === "PAGINATION";
+  const isVerticalPaged = isPaged && settings.writingMode === "VERTICAL";
+  const isHorizontalPaged = isPaged && settings.writingMode === "HORIZONTAL";
   const marginPx = MARGIN_PX[settings.marginSize] ?? MARGIN_PX.MEDIUM;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 縦書きページ送り専用: scrollRefは画面全幅のまま(タップ判定用)、実際にスクロール・
+  // クリップされるのはこの内側コンテナ。幅をページごとに動的に変える（下のarticle参照）。
+  const vPagerRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const bookmarkDialogRef = useRef<HTMLDialogElement>(null);
   const startedAtRef = useRef<number>(0);
@@ -153,6 +184,7 @@ export default function ReaderPage() {
       setShowSettings(false);
       setPageIndex(0);
       setPinnedWidth(null);
+      if (vPagerRef.current) vPagerRef.current.style.width = "";
       if (tapTimerRef.current) {
         clearTimeout(tapTimerRef.current);
         tapTimerRef.current = null;
@@ -235,7 +267,8 @@ export default function ReaderPage() {
     });
   }, [isPaged, isLoading, bodyHtml, settings.writingMode]);
 
-  // ページ送りモード時、ビューポート(スクロール領域)の実サイズをCSS columnsの列幅に使うため測っておく。
+  // ページ送りモード時、ビューポート(スクロール領域)の実サイズを1ページ分の幅・高さとして測っておく
+  // （横書きはCSS columnsの列幅に、縦書きは実測ベースのページ境界算出に使う）。
   useEffect(() => {
     if (!isPaged) return;
     const el = scrollRef.current;
@@ -250,8 +283,9 @@ export default function ReaderPage() {
   // 第1パス: widthを明示指定しない自然なレイアウトでscrollWidthを測り、画面幅の整数倍に
   // 切り上げた値をpinnedWidthとして確定する（切り上げなので本文が入りきらなくなることはない）。
   // レイアウト内容に影響する依存値が変わるたびpinnedWidthを一旦nullに戻し、測り直す。
+  // CSS columnsを使うのは横書きのみ（縦書きは別の実測ベース処理を下で行う）。
   useEffect(() => {
-    if (!isPaged || isLoading || !bodyHtml || viewportSize.width === 0) {
+    if (!isHorizontalPaged || isLoading || !bodyHtml || viewportSize.width === 0) {
       return;
     }
     // Reactのstate更新を介さず直接styleを外し、次のペイントで自然な幅に戻してから測る
@@ -271,55 +305,22 @@ export default function ReaderPage() {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, [isPaged, isLoading, bodyHtml, viewportSize, settings.fontSize, settings.lineHeight, settings.writingMode, settings.marginSize]);
+  }, [isHorizontalPaged, isLoading, bodyHtml, viewportSize, settings.fontSize, settings.lineHeight, settings.marginSize]);
 
-  // 第2パス: pinnedWidthを明示指定して再レイアウトされた後、scrollWidthは画面幅ちょうどの
-  // 整数倍になっているはず（CSS columnsはwidthが明示されると列幅をその幅に厳密に合わせて
-  // 再配分するため、実機検証で確認済み）。ここで初めて総ページ数を確定し、直前のスクロール位置
-  // 復元(上のuseEffect)の後に現在位置を最寄りのページ境界へスナップする。
+  // 第2パス(横書きのみ): pinnedWidthを明示指定して再レイアウトされた後、scrollWidthは画面幅
+  // ちょうどの整数倍になっているはず（CSS columnsはwidthが明示されると列幅をその幅に厳密に
+  // 合わせて再配分するため、実機検証で確認済み）。ここで初めて総ページ数を確定し、直前の
+  // スクロール位置復元(上のuseEffect)の後に現在位置を最寄りのページ境界へスナップする。
   useEffect(() => {
-    if (!isPaged || isLoading || !bodyHtml || viewportSize.width === 0 || pinnedWidth === null) return;
+    if (!isHorizontalPaged || isLoading || !bodyHtml || viewportSize.width === 0 || pinnedWidth === null) return;
     let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         const el = scrollRef.current;
-        const article = articleRef.current;
-        if (!el || !article) return;
+        if (!el) return;
         const w = viewportSize.width;
 
-        if (settings.writingMode === "VERTICAL") {
-          // 縦書き: 実測した行のx座標から、行間隔が明らかに広い場所（＝本当のページ境界）を
-          // 直接検出する（上のコメント参照。「1ページ何行」を事前に決め打ちしない）。
-          const linePitch = settings.fontSize * settings.lineHeight;
-          const lineXs = measureLineStartXs(article, el.scrollLeft);
-          const boundaries = computePageBoundariesFromLineXs(lineXs, linePitch, pinnedWidth);
-          pageBoundariesRef.current = boundaries;
-          const count = boundaries.length;
-          setPageCount(count);
-
-          let current: number;
-          if (restoreFractionRef.current !== null) {
-            current = Math.round(restoreFractionRef.current * (count - 1));
-            restoreFractionRef.current = null;
-          } else {
-            // 現在のscrollLeftに最も近い境界を探す（設定変更などでの再計算時、現在位置を維持する）。
-            current = 0;
-            let bestDist = Infinity;
-            boundaries.forEach((b, idx) => {
-              const dist = Math.abs(b - el.scrollLeft);
-              if (dist < bestDist) {
-                bestDist = dist;
-                current = idx;
-              }
-            });
-          }
-          current = Math.max(0, Math.min(count - 1, current));
-          setPageIndex(current);
-          el.scrollLeft = boundaries[current];
-          return;
-        }
-
-        // 横書き: columnWidth+columnGap=画面幅ちょうどになるよう構成しているため、
+        // columnWidth+columnGap=画面幅ちょうどになるよう構成しているため、
         // 単純な等間隔ステップで問題ない（実機検証でクリーンなことを確認済み）。
         const count = Math.max(1, Math.round(pinnedWidth / w));
         setPageCount(count);
@@ -339,9 +340,61 @@ export default function ReaderPage() {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, [isPaged, isLoading, bodyHtml, viewportSize, pinnedWidth, settings.writingMode, settings.fontSize, settings.lineHeight]);
+  }, [isHorizontalPaged, isLoading, bodyHtml, viewportSize, pinnedWidth]);
+
+  // 縦書き+ページ送り: CSS columnsを使わず、スクロールモードと同じ自然なレイアウトのまま
+  // 実際の行の占有範囲を実測し、画面幅ぴったりに収まる行数ごとにページを算出する
+  // （関数コメント参照）。pinnedWidthのような幅の固定は不要な代わりに、ページごとに
+  // スクロール領域自体の幅(vPagerRef)を動的に切り替える。
+  useEffect(() => {
+    if (!isVerticalPaged || isLoading || !bodyHtml || viewportSize.width === 0 || viewportSize.height === 0) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const pager = vPagerRef.current;
+        const article = articleRef.current;
+        if (!pager || !article) return;
+
+        const lines = measureVerticalLines(article, pager.scrollLeft);
+        const boundaries = computeVerticalPageBoundaries(lines, viewportSize.width, article.scrollWidth);
+        pageBoundariesRef.current = boundaries;
+        const count = boundaries.length;
+        setPageCount(count);
+
+        let current: number;
+        if (restoreFractionRef.current !== null) {
+          current = Math.round(restoreFractionRef.current * (count - 1));
+          restoreFractionRef.current = null;
+        } else {
+          // 現在のscrollLeftに最も近い境界を探す（設定変更などでの再計算時、現在位置を維持する）。
+          current = 0;
+          let bestDist = Infinity;
+          boundaries.forEach((b, idx) => {
+            const dist = Math.abs(b.scrollLeft - pager.scrollLeft);
+            if (dist < bestDist) {
+              bestDist = dist;
+              current = idx;
+            }
+          });
+        }
+        current = Math.max(0, Math.min(count - 1, current));
+        setPageIndex(current);
+        pager.style.width = `${boundaries[current].width}px`;
+        pager.scrollLeft = boundaries[current].scrollLeft;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [isVerticalPaged, isLoading, bodyHtml, viewportSize, settings.fontSize, settings.lineHeight, settings.marginSize]);
 
   const computeScrollFraction = useCallback(() => {
+    // 縦書きページ送りはページごとにスクロール領域の幅・scrollLeftの基準が変わるため、
+    // ピクセル単位のスクロール量ではなく現在のページ番号を進捗として使う。
+    if (isVerticalPaged) {
+      return (pageIndex / Math.max(1, pageCount - 1)) * 100;
+    }
     const el = scrollRef.current;
     if (!el) return 0;
     let fraction = 0;
@@ -353,7 +406,7 @@ export default function ReaderPage() {
       fraction = max > 0 ? el.scrollTop / max : 0;
     }
     return Math.max(0, Math.min(1, fraction)) * 100;
-  }, [settings.writingMode]);
+  }, [settings.writingMode, isVerticalPaged, pageIndex, pageCount]);
 
   // 話末に到達しているかどうか。スクロール量ではなく残りスクロール可能量で判定することで、
   // 本文が画面に収まりきって元々スクロールできない話でも「末尾にいる」扱いにできる。
@@ -411,8 +464,7 @@ export default function ReaderPage() {
   // 先頭ページより前には戻らない（前の話への自動遷移はしない仕様、フッターのボタンを使う）。
   const goToPage = useCallback(
     (index: number) => {
-      const el = scrollRef.current;
-      if (!el || viewportSize.width === 0 || pinnedWidth === null) return;
+      if (viewportSize.width === 0) return;
       if (index < 0) return;
       if (index >= pageCount) {
         goTo(nextChapter);
@@ -420,10 +472,15 @@ export default function ReaderPage() {
       }
       setPageIndex(index);
       if (settings.writingMode === "VERTICAL") {
-        // 実測したページ境界（本当に空白な場所）を使う。理由はページ数確定処理と同じ。
+        // 実測したページの(scrollLeft, 幅)を使う。理由はページ数確定処理と同じ。
+        const pager = vPagerRef.current;
         const boundary = pageBoundariesRef.current[index];
-        el.scrollLeft = boundary !== undefined ? boundary : 0;
+        if (!pager || !boundary) return;
+        pager.style.width = `${boundary.width}px`;
+        pager.scrollLeft = boundary.scrollLeft;
       } else {
+        const el = scrollRef.current;
+        if (!el || pinnedWidth === null) return;
         el.scrollLeft = index * viewportSize.width;
       }
     },
@@ -436,10 +493,13 @@ export default function ReaderPage() {
     if (isPaged) {
       const rect = e.currentTarget.getBoundingClientRect();
       const xRatio = (e.clientX - rect.left) / rect.width;
+      // 縦書き(右→左に読み進む)は横書きと左右のタップ方向が逆になる:
+      // 画面左側タップで「次のページ」、右側タップで「前のページ」。
+      const isVertical = settings.writingMode === "VERTICAL";
       if (xRatio < 0.3) {
-        goToPage(pageIndex - 1);
+        goToPage(isVertical ? pageIndex + 1 : pageIndex - 1);
       } else if (xRatio > 0.7) {
-        goToPage(pageIndex + 1);
+        goToPage(isVertical ? pageIndex - 1 : pageIndex + 1);
       } else {
         setChromeVisible((v) => !v);
         setShowSettings(false);
@@ -478,23 +538,11 @@ export default function ReaderPage() {
   const fontClass = settings.fontFamily === "MINCHO" ? "reader-text-mincho" : "reader-text-gothic";
   const paddingClass = MARGIN_PADDING[settings.marginSize] ?? MARGIN_PADDING.MEDIUM;
 
-  // 縦書きは1行の送り幅がfontSize*lineHeightの整数倍になる性質があり、columnWidthがその
-  // 整数倍ちょうどでないと最後の半端な1行分がページ境界をまたいで隣のページにわずかに
-  // はみ出す（文字が両端で見切れる原因になっていた、実機検証で確認済み）。そのため
-  // columnWidthは行送りピッチの整数倍に切り下げる。
-  //
-  // 重要: columnGapは「画面幅-columnWidth」ではなく「2*実効パディング」でなければならない。
-  // 総ページ幅(=padding*2 + N*columnWidth + (N-1)*columnGap)が画面幅の整数倍(N*画面幅)に
-  // きれいに telescoping するのは、columnGap=2*padding のときに限られる
-  // （columnWidth+columnGap=画面幅は必要条件だが、それだけでは総幅の端数が消えない）。
-  // そのため、columnWidthを行送りピッチの倍数に切り下げた分だけ、逆算した実効パディングを
-  // 少し広げて帳尻を合わせる（ユーザー設定のmarginPxに対して数px程度大きくなるのみ）。
-  const rawColumnWidth = Math.max(1, viewportSize.width - marginPx * 2);
-  const linePitch = settings.fontSize * settings.lineHeight;
-  const columnWidth =
-    settings.writingMode === "VERTICAL"
-      ? Math.max(linePitch, Math.floor(rawColumnWidth / linePitch) * linePitch)
-      : rawColumnWidth;
+  // 横書きページ送り専用: columnWidth+columnGap=画面幅ちょうどになるよう構成し、
+  // コンテナのpadding-left/rightにmarginPxを設定することで、どのページを表示しても
+  // 両端に余白ができる（列と列の間の隙間が前後のページの余白に見える、という仕掛け）。
+  // 縦書きページ送りはCSS columnsを使わないため、この計算は不要（下のarticleで分岐）。
+  const columnWidth = Math.max(1, viewportSize.width - marginPx * 2);
   const columnGap = viewportSize.width - columnWidth;
   const effectivePadding = columnGap / 2;
 
@@ -511,17 +559,12 @@ export default function ReaderPage() {
           <p className="text-center text-sm text-muted">読み込み中...</p>
         ) : error ? (
           <p className="text-center text-sm text-update">{error}</p>
-        ) : isPaged ? (
+        ) : isHorizontalPaged ? (
           viewportSize.width > 0 && (
-            // ページ送りモード: CSS多段組(columns)で本文を画面幅ぴったりの列に分割する。
-            // columnWidth+columnGap=画面幅になるようにし、コンテナのpadding-left/rightに
-            // marginPxを設定することで、どのページを表示しても両端に余白ができる
-            // （列と列の間の隙間が前後のページの余白に見える、という仕掛け）。
-            // 縦書き(vertical-rl)でも列はscrollWidth方向（x軸）に増えるため同じCSSで成立する
-            // （goToPage/スナップ処理側でスクロール方向のみ縦書き用に反転している）。
+            // 横書きページ送り: CSS多段組(columns)で本文を画面幅ぴったりの列に分割する。
             <article
               ref={articleRef}
-              className={`${settings.writingMode === "VERTICAL" ? "writing-vertical" : ""} ${fontClass}`}
+              className={fontClass}
               style={{
                 fontSize: settings.fontSize,
                 lineHeight: settings.lineHeight,
@@ -545,6 +588,41 @@ export default function ReaderPage() {
               <h1 className="mb-4 text-base font-bold">{title}</h1>
               <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
             </article>
+          )
+        ) : isVerticalPaged ? (
+          viewportSize.width > 0 && (
+            // 縦書きページ送り: CSS columnsを使わず、スクロールモードと同じ自然な
+            // レイアウトのままarticleをレンダリングし、実測ベースでページ境界を算出する
+            // （computeVerticalPageBoundariesのコメント参照）。各ページのグループ幅は
+            // 画面幅ぴったりにはならないため、内側のvPagerRef自体の幅をページごとに
+            // 動的に変えて中央寄せする（見切れが原理的に起こらない）。
+            <div
+              ref={vPagerRef}
+              style={{
+                height: viewportSize.height,
+                width: viewportSize.width,
+                overflow: "hidden",
+                margin: "0 auto",
+              }}
+            >
+              <article
+                ref={articleRef}
+                className={`writing-vertical ${fontClass}`}
+                style={{
+                  fontSize: settings.fontSize,
+                  lineHeight: settings.lineHeight,
+                  height: viewportSize.height,
+                  boxSizing: "border-box",
+                  paddingLeft: marginPx,
+                  paddingRight: marginPx,
+                  paddingTop: 24,
+                  paddingBottom: 24,
+                }}
+              >
+                <h1 className="mb-4 text-base font-bold">{title}</h1>
+                <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+              </article>
+            </div>
           )
         ) : (
           <div className={settings.writingMode === "VERTICAL" ? "flex h-full" : "mx-auto max-w-2xl"}>

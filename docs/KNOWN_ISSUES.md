@@ -20,7 +20,7 @@
 
 - ~~検索画面、作者ページ、更新一覧画面、読書統計・カレンダー画面~~ → **Phase5後半で実装済み**（下記「Phase5後半（追加画面）で実装した内容」参照）。
 - **シリーズ管理画面は意図的に未実装のまま**。`NarouAdapter`がシリーズ情報を一切取得しておらず、`Novel.seriesId`が常にnullになるため（[DECISIONS.md](DECISIONS.md)参照）。Adapter側でシリーズ検出を実装してから着手する。
-- ~~ページ送り（pagination）モードの実際の表示（設定は保存されるが表示はスクロールのまま）~~ → **2026-07-19、横書きのみ実装済み**。縦書き+ページ送りの組み合わせは、CSS多段組(`columns`)と`writing-mode: vertical-rl`の相互作用でページ境界の文字が数px単位で視覚的に見切れる不具合が複数の対策後も再現するため、当面は`pageMode: PAGINATION`設定でも縦書き時は自動的に従来のスクロール表示にフォールバックする（[DECISIONS.md](DECISIONS.md)参照、試した対策一覧あり）。
+- ~~ページ送り（pagination）モードの実際の表示（設定は保存されるが表示はスクロールのまま）~~ → **2026-07-19、横書き実装済み**。~~縦書き+ページ送りの組み合わせは、CSS多段組(`columns`)と`writing-mode: vertical-rl`の相互作用でページ境界の文字が数px単位で視覚的に見切れる不具合が複数の対策後も再現するため、当面は`pageMode: PAGINATION`設定でも縦書き時は自動的に従来のスクロール表示にフォールバックする~~ → **2026-07-20、解消**。CSS `columns`を使わず、スクロールモードと同じ自然なレイアウトのまま実測した行位置から動的にページ境界(scrollLeftと表示幅)を算出する方式に変更（[DECISIONS.md](DECISIONS.md)参照）。
 - オフラインキャッシュの暗号化・容量表示・上限設定・作品単位削除UI（[DECISIONS.md](DECISIONS.md)参照。現在はIndexedDBに平文保存のみ）
 - PWAインストールプロンプトのカスタムUI（ブラウザ標準のインストール導線には対応、独自バナーは未実装）
 - Googleログイン（バックエンド側は`AuthProvider.GOOGLE`を用意済みだが、フロントエンド・バックエンドとも未実装）
@@ -72,6 +72,10 @@
 - Nginx/Let's Encrypt構成（`docker/nginx/*.conf`, `docker-compose.prod.yml`）は開発機上で構文検証・自己署名証明書での実プロキシ動作確認まで行ったが、**実際のConoHa VPS・実ドメイン・実証明書での動作は未確認**（VPS未契約のため）。[docs/DEPLOY.md](DEPLOY.md)の手順どおりに進めれば動くはずだが、初回デプロイ時に想定外の差異が出る可能性はある。
 - `nginx.conf`の`server_name`は`novelshelf.jp`固定（`www.novelshelf.jp`等のサブドメインは非対応）。将来サブドメインを使う場合は設定追加が必要。
 - 証明書の自動更新はVPSのcrontabに依存する設計（[DEPLOY.md](DEPLOY.md)参照）。cron失敗の監視・通知の仕組みは未整備。
+
+## Bot対策等によるサイト側アクセス拒否について（2026-07-20判明）
+
+- **`h.syosetu.org`（ハーメルンR18）が本番VPS（ConoHa）のIPアドレスからのリクエストをCloudflareのBot対策（チャレンジページ、HTTP 403）でブロックすることがある**。開発機など別IPからは同じURLが正常に取得できるため、コード側の不具合ではなくサイト側のアクセス制限（データセンターIPへの一般的な対応）と判断。回避策（Bot対策の突破・偽装）は行わない方針。`h.syosetu.org/novel/*`の追加が「対応サイトのURLとして認識できませんでした」ではなく「サイトへのアクセスが拒否されました(HTTP 403)」と表示される場合はこれが原因（`SiteAccessBlockedException`、503で返す）。`syosetu.org`（ハーメルン通常版）・`ncode.syosetu.com`・`novel18.syosetu.com`（なろう）では本事象は確認されていない（2026-07-20時点）。
 
 ## バグ
 

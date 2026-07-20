@@ -1,6 +1,7 @@
 package com.novelshelf.infrastructure.adapter.hameln;
 
 import com.novelshelf.domain.novel.NovelStatus;
+import com.novelshelf.domain.novel.SiteAccessBlockedException;
 import com.novelshelf.domain.novel.SiteCode;
 import com.novelshelf.domain.novel.UnresolvableNovelUrlException;
 import com.novelshelf.infrastructure.adapter.ExternalChapter;
@@ -220,6 +221,12 @@ public class HamelnAdapter implements NovelSiteAdapter {
             // （実機確認済み、値は"off"で年齢確認を求めない状態を表す模様）。
             // 通常サイト側では単に無視されるだけなので、常に付与して分岐を避けている。
             return Jsoup.connect(url).userAgent(USER_AGENT).cookie("over18", "off").timeout(10_000).get();
+        } catch (org.jsoup.HttpStatusException e) {
+            // 403等はURLの形式が不正なのではなく、サイト側のBot対策等でアクセス自体を
+            // 拒否されているケースが多い（本番VPSのIPがh.syosetu.orgのCloudflare Bot対策に
+            // ブロックされる事例で判明、docs/KNOWN_ISSUES.md参照）。「URLとして認識できない」
+            // という誤解を招くメッセージにならないよう区別する。
+            throw new SiteAccessBlockedException(url, e.getStatusCode());
         } catch (java.io.IOException e) {
             throw new UnresolvableNovelUrlException(url);
         }
