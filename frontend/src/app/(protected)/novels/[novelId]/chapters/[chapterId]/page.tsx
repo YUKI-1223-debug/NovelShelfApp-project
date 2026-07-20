@@ -129,6 +129,7 @@ export default function ReaderPage() {
   const bookmarkDialogRef = useRef<HTMLDialogElement>(null);
   const startedAtRef = useRef<number>(0);
   const restoreFractionRef = useRef<number | null>(null);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const currentChapter = chapters[currentIndex];
@@ -152,6 +153,10 @@ export default function ReaderPage() {
       setShowSettings(false);
       setPageIndex(0);
       setPinnedWidth(null);
+      if (tapTimerRef.current) {
+        clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = null;
+      }
       startedAtRef.current = Date.now();
       // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
       // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
@@ -350,6 +355,19 @@ export default function ReaderPage() {
     return Math.max(0, Math.min(1, fraction)) * 100;
   }, [settings.writingMode]);
 
+  // 話末に到達しているかどうか。スクロール量ではなく残りスクロール可能量で判定することで、
+  // 本文が画面に収まりきって元々スクロールできない話でも「末尾にいる」扱いにできる。
+  const isAtChapterEnd = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return false;
+    if (settings.writingMode === "VERTICAL") {
+      const max = el.scrollWidth - el.clientWidth;
+      return max <= 0 || el.scrollLeft <= max * 0.005;
+    }
+    const max = el.scrollHeight - el.clientHeight;
+    return max <= 0 || el.scrollTop >= max * 0.995;
+  }, [settings.writingMode]);
+
   const saveProgress = useCallback(() => {
     if (!scrollRef.current) return;
     const scrollPosition = computeScrollFraction();
@@ -373,6 +391,12 @@ export default function ReaderPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId]);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
+  }, []);
 
   const goTo = useCallback(
     (chapter: Chapter | undefined) => {
@@ -406,52 +430,50 @@ export default function ReaderPage() {
     [viewportSize.width, pinnedWidth, pageCount, goTo, nextChapter, settings.writingMode]
   );
 
+  const DOUBLE_TAP_MS = 300;
+
   function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!isPaged) {
-      setChromeVisible((v) => !v);
-      setShowSettings(false);
+    if (isPaged) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const xRatio = (e.clientX - rect.left) / rect.width;
+      if (xRatio < 0.3) {
+        goToPage(pageIndex - 1);
+      } else if (xRatio > 0.7) {
+        goToPage(pageIndex + 1);
+      } else {
+        setChromeVisible((v) => !v);
+        setShowSettings(false);
+      }
       return;
     }
+
+    // 話末で画面左側をダブルタップしたら次の話へ移動する。1回目のタップは
+    // ダブルタップ待ちのため即座にはトグルせず、猶予時間内に2回目が来なければ
+    // 通常どおりイマーシブ表示のトグルとして扱う。
     const rect = e.currentTarget.getBoundingClientRect();
     const xRatio = (e.clientX - rect.left) / rect.width;
-    if (xRatio < 0.3) {
-      goToPage(pageIndex - 1);
-    } else if (xRatio > 0.7) {
-      goToPage(pageIndex + 1);
-    } else {
-      setChromeVisible((v) => !v);
-      setShowSettings(false);
-    }
-  }
-
-  // 本文の最後までスクロールしたあと、さらにスクロールしようとしたら次の話へ自動的に移動する。
-  // 「最後に到達した瞬間」ではなく、そこからさらに一定時間スクロール操作が続いた場合のみ発火させることで、
-  // 最終行を読み終えた直後に意図せず次の話へ飛んでしまうのを防ぐ。ページ送りモードでは
-  // goToPage側でページ境界を超えた遷移を扱うため、この監視は不要（scrollイベント自体発生しない）。
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !nextChapter || isPaged) return;
-    let reachedEndAt: number | null = null;
-    let advanced = false;
-
-    function handleScroll() {
-      if (advanced) return;
-      const fraction = computeScrollFraction() / 100;
-      if (fraction >= 0.995) {
-        if (reachedEndAt === null) {
-          reachedEndAt = Date.now();
-        } else if (Date.now() - reachedEndAt > 400) {
-          advanced = true;
-          goTo(nextChapter);
-        }
-      } else {
-        reachedEndAt = null;
+    if (xRatio < 0.3 && nextChapter && isAtChapterEnd()) {
+      if (tapTimerRef.current) {
+        clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = null;
+        goTo(nextChapter);
+        return;
       }
+      tapTimerRef.current = setTimeout(() => {
+        tapTimerRef.current = null;
+        setChromeVisible((v) => !v);
+        setShowSettings(false);
+      }, DOUBLE_TAP_MS);
+      return;
     }
 
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [chapterId, nextChapter, computeScrollFraction, goTo, isPaged]);
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+    setChromeVisible((v) => !v);
+    setShowSettings(false);
+  }
 
   const fontClass = settings.fontFamily === "MINCHO" ? "reader-text-mincho" : "reader-text-gothic";
   const paddingClass = MARGIN_PADDING[settings.marginSize] ?? MARGIN_PADDING.MEDIUM;
