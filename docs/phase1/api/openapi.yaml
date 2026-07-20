@@ -778,7 +778,7 @@ components:
         backgroundColor: { type: string }
         theme: { type: string }
         pageMode: { type: string, enum: [PAGINATION, SCROLL] }
-        shelfSortOrder: { type: string }
+        shelfSortOrder: { type: string, enum: [ADDED_DESC, RECENT_DESC] }
 
     StatsSummary:
       type: object

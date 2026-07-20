@@ -66,7 +66,7 @@ public class UserSettings {
 
     @Column(name = "shelf_sort_order", nullable = false, length = 20)
     @Builder.Default
-    private String shelfSortOrder = "UPDATED_DESC";
+    private String shelfSortOrder = "ADDED_DESC";
 
     @Column(name = "updated_at", nullable = false)
     @Builder.Default

@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   backgroundColor: "DEFAULT",
   theme: "DEFAULT",
   pageMode: "SCROLL",
-  shelfSortOrder: "UPDATED_DESC",
+  shelfSortOrder: "ADDED_DESC",
 };
 
 interface SettingsContextValue {

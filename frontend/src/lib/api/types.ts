@@ -4,6 +4,7 @@ export type ShelfStatus = "READING" | "COMPLETED" | "READ_LATER";
 export type WritingMode = "VERTICAL" | "HORIZONTAL";
 export type FontFamily = "MINCHO" | "GOTHIC";
 export type PageMode = "PAGINATION" | "SCROLL";
+export type ShelfSortOrder = "ADDED_DESC" | "RECENT_DESC";
 
 export interface AuthTokens {
   accessToken: string;
@@ -114,7 +115,7 @@ export interface UserSettings {
   backgroundColor: string;
   theme: string;
   pageMode: PageMode;
-  shelfSortOrder: string;
+  shelfSortOrder: ShelfSortOrder;
 }
 
 export interface StatsSummary {
