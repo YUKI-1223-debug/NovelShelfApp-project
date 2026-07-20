@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
-import { ChartIcon, ExternalLinkIcon, HeartIcon, PlusIcon } from "@/components/icons";
+import { ChartIcon, ExternalLinkIcon, HeartIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfSortOrder, type ShelfStatus } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -53,6 +53,8 @@ export default function BookshelfPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async (key: FilterKey, sort: ShelfSortOrder) => {
@@ -104,25 +106,72 @@ export default function BookshelfPage() {
     }
   }
 
+  function toggleSelect(entryId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) {
+        next.delete(entryId);
+      } else {
+        next.add(entryId);
+      }
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`選択した${selectedIds.size}件を本棚から削除しますか？`)) return;
+    const ids = [...selectedIds];
+    await Promise.all(ids.map((id) => shelfApi.remove(id).catch(() => {})));
+    exitSelectMode();
+    load(filter, sortOrder);
+  }
+
   return (
     <div className="flex flex-col gap-4 px-4 pt-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">本棚</h1>
         <div className="flex items-center gap-2">
-          <Link
-            href="/stats"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted"
-            aria-label="読書統計"
-          >
-            <ChartIcon className="h-5 w-5" />
-          </Link>
-          <button
-            onClick={() => dialogRef.current?.showModal()}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground"
-            aria-label="作品を追加"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
+          {selectMode ? (
+            <>
+              <button
+                onClick={deleteSelected}
+                disabled={selectedIds.size === 0}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-update disabled:opacity-40"
+                aria-label={`選択した${selectedIds.size}件を削除`}
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+              <button onClick={exitSelectMode} className="px-2 text-xs font-medium text-muted">
+                キャンセル
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setSelectMode(true)} className="px-2 text-xs font-medium text-muted">
+                選択
+              </button>
+              <Link
+                href="/stats"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted"
+                aria-label="読書統計"
+              >
+                <ChartIcon className="h-5 w-5" />
+              </Link>
+              <button
+                onClick={() => dialogRef.current?.showModal()}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground"
+                aria-label="作品を追加"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -130,7 +179,10 @@ export default function BookshelfPage() {
         {FILTERS.map((f) => (
           <button
             key={f.key}
-            onClick={() => setFilter(f.key)}
+            onClick={() => {
+              setFilter(f.key);
+              setSelectedIds(new Set());
+            }}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
               filter === f.key
                 ? "border-accent bg-accent-tint text-accent-soft"
@@ -172,9 +224,10 @@ export default function BookshelfPage() {
         </p>
       ) : (
         <div className="flex flex-col divide-y divide-border">
-          {visibleEntries.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-2 py-3">
-              <Link href={`/novels/${entry.novel.id}`} className="min-w-0 flex-1">
+          {visibleEntries.map((entry) => {
+            const isSelected = selectedIds.has(entry.id);
+            const rowBody = (
+              <>
                 <div className="flex items-center gap-1.5">
                   {entry.novel.hasUpdate && (
                     <span className="shrink-0 rounded bg-update-tint px-1.5 py-0.5 text-[10px] font-bold text-update">
@@ -191,26 +244,47 @@ export default function BookshelfPage() {
                       : "未読"}
                   </p>
                 )}
-              </Link>
-              {!entry.novel.siteSupported && (
-                <a
-                  href={entry.novel.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="外部サイトで開く"
-                  className="shrink-0 text-muted"
-                >
-                  <ExternalLinkIcon className="h-5 w-5" />
-                </a>
-              )}
-              <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替" className="shrink-0">
-                <HeartIcon
-                  filled={entry.isFavorite}
-                  className={`h-5 w-5 ${entry.isFavorite ? "text-update" : "text-muted"}`}
-                />
-              </button>
-            </div>
-          ))}
+              </>
+            );
+            return (
+              <div key={entry.id} className="flex items-center gap-2 py-3">
+                {selectMode ? (
+                  <button onClick={() => toggleSelect(entry.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                        isSelected ? "border-accent bg-accent" : "border-border"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1">{rowBody}</span>
+                  </button>
+                ) : (
+                  <Link href={`/novels/${entry.novel.id}`} className="min-w-0 flex-1">
+                    {rowBody}
+                  </Link>
+                )}
+                {!selectMode && !entry.novel.siteSupported && (
+                  <a
+                    href={entry.novel.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="外部サイトで開く"
+                    className="shrink-0 text-muted"
+                  >
+                    <ExternalLinkIcon className="h-5 w-5" />
+                  </a>
+                )}
+                {!selectMode && (
+                  <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替" className="shrink-0">
+                    <HeartIcon
+                      filled={entry.isFavorite}
+                      className={`h-5 w-5 ${entry.isFavorite ? "text-update" : "text-muted"}`}
+                    />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

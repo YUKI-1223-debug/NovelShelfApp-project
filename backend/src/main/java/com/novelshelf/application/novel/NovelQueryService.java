@@ -100,7 +100,15 @@ public class NovelQueryService {
         }
 
         NovelSiteAdapter adapter = adapterRegistry.resolve(site.getCode());
-        List<ExternalChapter> externalChapters = adapter.fetchChapterList(novel.getExternalNovelId());
+        List<ExternalChapter> externalChapters;
+        try {
+            externalChapters = adapter.fetchChapterList(novel.getExternalNovelId());
+        } catch (SiteAccessBlockedException e) {
+            // サイト自体は対応済みだが、サイト側のアクセス制限で一時的に取得できない
+            // （h.syosetu.orgの事例、docs/KNOWN_ISSUES.md参照）。作品詳細画面の読み込み自体を
+            // 丸ごと失敗させず、これまでにキャッシュ済みの話一覧（無ければ空）を返す。
+            return chapterRepository.findByNovelIdOrderByChapterNoAsc(novelId);
+        }
 
         for (ExternalChapter ec : externalChapters) {
             Chapter chapter = chapterRepository
