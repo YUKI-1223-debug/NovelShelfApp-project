@@ -162,6 +162,13 @@ export default function ReaderPage() {
   // 一度自然なレイアウトでscrollWidthを測り、画面幅の整数倍に切り上げた値をwidthとして明示指定し
   // 再レイアウトさせることで、ブラウザに列幅を画面幅ちょうどへ強制的に揃え直させる（2パス測定）。
   const [pinnedWidth, setPinnedWidth] = useState<number | null>(null);
+  // ページ送りモードで話を切り替えた直後は、実測ベースのページ境界計算が終わるまで
+  // 一瞬「1ページ目」の内容がそのまま見えてしまい、そこから目的のページ（次の話の先頭、
+  // または前の話の末尾）へ一瞬で飛ぶ「別の内容が一瞬見える」現象が起きていた。
+  // 位置確定（下の2つのuseEffect参照）が終わるまでvisibility:hiddenで隠すために使う
+  // （display:noneにすると計測できなくなるためvisibilityを使う）。話を切り替えた瞬間に
+  // falseへ戻す。
+  const [isPositioned, setIsPositioned] = useState(false);
   // 縦書き時の各ページの(scrollLeft, 幅)。measureVerticalLines/computeVerticalPageBoundariesで
   // 実測して埋める。横書きはcolumnWidth+columnGap=画面幅の単純な等間隔で問題ないため使わない。
   const pageBoundariesRef = useRef<VerticalPageBoundary[]>([]);
@@ -203,6 +210,7 @@ export default function ReaderPage() {
       setShowSettings(false);
       setPageIndex(0);
       setPinnedWidth(null);
+      setIsPositioned(false);
       if (vPagerRef.current) vPagerRef.current.style.width = "";
       if (tapTimerRef.current) {
         clearTimeout(tapTimerRef.current);
@@ -363,6 +371,7 @@ export default function ReaderPage() {
         const current = Math.max(0, Math.min(count - 1, Math.round(rawIndex)));
         setPageIndex(current);
         el.scrollLeft = current * w;
+        setIsPositioned(true);
       });
     });
     return () => {
@@ -410,6 +419,7 @@ export default function ReaderPage() {
         setPageIndex(current);
         pager.style.width = `${boundaries[current].width}px`;
         pager.scrollLeft = boundaries[current].scrollLeft;
+        setIsPositioned(true);
       });
     });
     return () => {
@@ -717,6 +727,10 @@ export default function ReaderPage() {
                 paddingRight: effectivePadding,
                 paddingTop: 24,
                 paddingBottom: 24,
+                // 話を切り替えた直後、実測でページ位置が確定するまでは「1ページ目」の内容が
+                // 一瞬見えてしまう（目的のページへジャンプする前の状態）。display:noneだと
+                // 計測できなくなるためvisibilityで隠す（isPositioned参照）。
+                visibility: isPositioned ? "visible" : "hidden",
               }}
             >
               <h1 className="mb-4 text-base font-bold">{title}</h1>
@@ -737,6 +751,8 @@ export default function ReaderPage() {
                 width: viewportSize.width,
                 overflow: "hidden",
                 margin: "0 auto",
+                // 横書きページ送りと同じ理由（上のコメント参照）。
+                visibility: isPositioned ? "visible" : "hidden",
               }}
             >
               <article
