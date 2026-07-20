@@ -45,6 +45,8 @@ public class NarouAdapter implements NovelSiteAdapter {
     private static final Pattern R18_NCODE_PATTERN =
             Pattern.compile("novel18\\.syosetu\\.com/([a-zA-Z0-9]+)", Pattern.CASE_INSENSITIVE);
     private static final String R18_ID_PREFIX = "r18:";
+    // 短編(単話)は話一覧を持たず、作品トップページ自体が本文ページになる（実話数と衝突しないよう0を使う）。
+    private static final String TANPEN_CHAPTER_ID = "0";
     private static final DateTimeFormatter UPDATE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
     private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
     private static final String USER_AGENT = "NovelShelfApp/0.1 (personal-use reading app; +https://github.com/)";
@@ -182,13 +184,23 @@ public class NarouAdapter implements NovelSiteAdapter {
             chapters.add(
                     new ExternalChapter(String.valueOf(chapterNo), chapterNo, title, siteBaseUrl + href, publishedAt));
         }
+        if (chapters.isEmpty()) {
+            // 短編(単話)は話一覧(p-eplist__sublist)を持たず、作品トップページ自体が本文ページになる。
+            Element titleEl = doc.selectFirst("h1.p-novel__title");
+            if (titleEl != null) {
+                chapters.add(new ExternalChapter(TANPEN_CHAPTER_ID, 1, titleEl.text().trim(), tocUrl, null));
+            }
+        }
         return chapters;
     }
 
     @Override
     public ExternalChapterContent fetchChapterContent(String externalNovelId, String externalChapterId) {
         String ncode = rawNcode(externalNovelId);
-        String episodeUrl = siteBaseUrlFor(externalNovelId) + "/" + ncode + "/" + externalChapterId + "/";
+        String siteBaseUrl = siteBaseUrlFor(externalNovelId);
+        String episodeUrl = TANPEN_CHAPTER_ID.equals(externalChapterId)
+                ? siteBaseUrl + "/" + ncode + "/"
+                : siteBaseUrl + "/" + ncode + "/" + externalChapterId + "/";
         Document doc = fetchHtml(episodeUrl);
 
         Element titleEl = doc.selectFirst("h1.p-novel__title");

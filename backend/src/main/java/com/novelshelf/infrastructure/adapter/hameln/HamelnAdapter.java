@@ -44,6 +44,8 @@ public class HamelnAdapter implements NovelSiteAdapter {
     private static final Pattern EPISODE_HREF_PATTERN = Pattern.compile("^\\./?(\\d+)\\.html$");
     private static final String USER_AGENT = "NovelShelfApp/0.1 (personal-use reading app; +https://github.com/)";
     private static final String R18_ID_PREFIX = "r18:";
+    // 短編(単話)は目次ページを持たず、作品トップページ自体が本文ページになる（実話数と衝突しないよう0を使う）。
+    private static final String TANPEN_CHAPTER_ID = "0";
 
     private final HamelnProperties properties;
     private final HamelnRateLimiter rateLimiter;
@@ -97,23 +99,40 @@ public class HamelnAdapter implements NovelSiteAdapter {
 
         Element titleEl = doc.selectFirst("[itemprop=name]");
         Element authorLinkEl = doc.selectFirst("[itemprop=author] a");
-        if (titleEl == null || authorLinkEl == null) {
-            throw new UnresolvableNovelUrlException(url);
+
+        String title;
+        String authorHref;
+        String authorName;
+        if (titleEl != null && authorLinkEl != null) {
+            title = titleEl.text().trim();
+            authorHref = authorLinkEl.attr("href");
+            authorName = authorLinkEl.text().trim();
+        } else {
+            // 短編(単話)ページにはitemprop=name/authorのマイクロデータが存在しないため、
+            // og:titleと本文中の作者リンク（ページ内で唯一の/user/リンク）から代わりに取得する。
+            Element tanpenTitleEl = doc.selectFirst("meta[property=og:title]");
+            Element tanpenAuthorEl = doc.selectFirst("a[href*=/user/]");
+            if (tanpenTitleEl == null || tanpenAuthorEl == null) {
+                throw new UnresolvableNovelUrlException(url);
+            }
+            title = tanpenTitleEl.attr("content").split(" - ")[0].trim();
+            authorHref = tanpenAuthorEl.attr("href");
+            authorName = tanpenAuthorEl.text().trim();
         }
-        String authorHref = authorLinkEl.attr("href");
+
         Matcher userIdMatcher = USER_ID_PATTERN.matcher(authorHref);
         String authorId = userIdMatcher.find() ? userIdMatcher.group(1) : authorHref;
 
         Element descriptionEl = doc.selectFirst("meta[property=og:description]");
         String synopsis = descriptionEl != null ? descriptionEl.attr("content") : "";
 
-        List<ExternalChapter> chapters = parseChapterList(doc, siteBaseUrl, novelId);
+        List<ExternalChapter> chapters = parseChapterListWithTanpenFallback(doc, siteBaseUrl, novelId, topUrl, title);
 
         return new ExternalNovelMetadata(
                 r18 ? R18_ID_PREFIX + novelId : novelId,
-                titleEl.text().trim(),
+                title,
                 authorId,
-                authorLinkEl.text().trim(),
+                authorName,
                 authorHref,
                 synopsis,
                 null,
@@ -127,8 +146,22 @@ public class HamelnAdapter implements NovelSiteAdapter {
         boolean r18 = isR18ExternalId(externalNovelId);
         String novelId = rawNovelId(externalNovelId);
         String siteBaseUrl = siteBaseUrlFor(r18);
-        Document doc = fetchHtml(siteBaseUrl + "/novel/" + novelId + "/");
-        return parseChapterList(doc, siteBaseUrl, novelId);
+        String topUrl = siteBaseUrl + "/novel/" + novelId + "/";
+        Document doc = fetchHtml(topUrl);
+        Element ogTitleEl = doc.selectFirst("meta[property=og:title]");
+        String title = ogTitleEl != null ? ogTitleEl.attr("content").split(" - ")[0].trim() : "";
+        return parseChapterListWithTanpenFallback(doc, siteBaseUrl, novelId, topUrl, title);
+    }
+
+    // 短編(単話)は目次テーブルを持たないため、通常の話一覧パースで0件だった場合は
+    // 作品トップページ自体を唯一の話として扱う（本文もこのページに直接載っている）。
+    private List<ExternalChapter> parseChapterListWithTanpenFallback(
+            Document doc, String siteBaseUrl, String novelId, String topUrl, String title) {
+        List<ExternalChapter> chapters = parseChapterList(doc, siteBaseUrl, novelId);
+        if (!chapters.isEmpty()) {
+            return chapters;
+        }
+        return List.of(new ExternalChapter(TANPEN_CHAPTER_ID, 1, title, topUrl, null));
     }
 
     private List<ExternalChapter> parseChapterList(Document doc, String siteBaseUrl, String novelId) {
@@ -159,7 +192,10 @@ public class HamelnAdapter implements NovelSiteAdapter {
     @Override
     public ExternalChapterContent fetchChapterContent(String externalNovelId, String externalChapterId) {
         String siteBaseUrl = siteBaseUrlFor(isR18ExternalId(externalNovelId));
-        String episodeUrl = siteBaseUrl + "/novel/" + rawNovelId(externalNovelId) + "/" + externalChapterId + ".html";
+        String novelId = rawNovelId(externalNovelId);
+        String episodeUrl = TANPEN_CHAPTER_ID.equals(externalChapterId)
+                ? siteBaseUrl + "/novel/" + novelId + "/"
+                : siteBaseUrl + "/novel/" + novelId + "/" + externalChapterId + ".html";
         Document doc = fetchHtml(episodeUrl);
 
         Element bodyEl = doc.selectFirst("div#honbun");
