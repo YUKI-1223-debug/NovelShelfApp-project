@@ -11,8 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 外部サイトから作品情報を取り込み、内部DBへ永続化する。
- * 未対応サイト（{@link SiteNotSupportedException}）の場合は、本文取得を伴わない
- * プレースホルダー作品として登録し、本棚へのリンク登録のみを可能にする（アーキテクチャ上のFallbackLinkAdapter相当）。
+ * 未対応サイト（{@link SiteNotSupportedException}）、および対応サイトではあるが
+ * サイト側のアクセス制限で一時的に取得できない場合（{@link SiteAccessBlockedException}、
+ * 例: h.syosetu.orgがサーバーのIPをBot対策でブロックする事例。docs/KNOWN_ISSUES.md参照）は、
+ * 本文取得を伴わないプレースホルダー作品として登録し、本棚へのリンク登録のみを可能にする
+ * （アーキテクチャ上のFallbackLinkAdapter相当）。
  */
 @Service
 public class IngestService {
@@ -43,7 +46,7 @@ public class IngestService {
         try {
             NovelSiteAdapter adapter = adapterRegistry.resolve(siteCode);
             return ingestFromAdapter(site, adapter, url);
-        } catch (SiteNotSupportedException e) {
+        } catch (SiteNotSupportedException | SiteAccessBlockedException e) {
             return resolvePlaceholder(site, url);
         }
     }
