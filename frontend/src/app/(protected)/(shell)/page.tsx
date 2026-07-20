@@ -55,6 +55,9 @@ export default function BookshelfPage() {
   const [fromCache, setFromCache] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // PWAのスタンドアロン表示ではwindow.confirm()が機能しない(何も表示されず即falseになる)
+  // 端末があったため、ネイティブダイアログではなく画面内の確認バーで代用する。
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async (key: FilterKey, sort: ShelfSortOrder) => {
@@ -121,12 +124,12 @@ export default function BookshelfPage() {
   function exitSelectMode() {
     setSelectMode(false);
     setSelectedIds(new Set());
+    setConfirmingDelete(false);
   }
 
   async function deleteSelected() {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`選択した${selectedIds.size}件を本棚から削除しますか？`)) return;
     const ids = [...selectedIds];
+    setConfirmingDelete(false);
     await Promise.all(ids.map((id) => shelfApi.remove(id).catch(() => {})));
     exitSelectMode();
     load(filter, sortOrder);
@@ -140,7 +143,7 @@ export default function BookshelfPage() {
           {selectMode ? (
             <>
               <button
-                onClick={deleteSelected}
+                onClick={() => setConfirmingDelete(true)}
                 disabled={selectedIds.size === 0}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-update disabled:opacity-40"
                 aria-label={`選択した${selectedIds.size}件を削除`}
@@ -174,6 +177,26 @@ export default function BookshelfPage() {
           )}
         </div>
       </div>
+
+      {confirmingDelete && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-update bg-update-tint px-3 py-2">
+          <p className="text-xs text-update">選択した{selectedIds.size}件を本棚から削除しますか？</p>
+          <div className="flex shrink-0 gap-2">
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              className="rounded-full px-2.5 py-1 text-xs font-medium text-muted"
+            >
+              やめる
+            </button>
+            <button
+              onClick={deleteSelected}
+              className="rounded-full bg-update px-2.5 py-1 text-xs font-semibold text-white"
+            >
+              削除する
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {FILTERS.map((f) => (
@@ -263,7 +286,7 @@ export default function BookshelfPage() {
                     {rowBody}
                   </Link>
                 )}
-                {!selectMode && !entry.novel.siteSupported && (
+                {!selectMode && entry.novel.latestKnownChapterNo === 0 && (
                   <a
                     href={entry.novel.sourceUrl}
                     target="_blank"

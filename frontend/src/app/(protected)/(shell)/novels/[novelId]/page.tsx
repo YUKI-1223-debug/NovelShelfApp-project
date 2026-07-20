@@ -215,7 +215,7 @@ export default function NovelDetailPage() {
           ) : (
             <div className="flex items-center gap-1.5">
               <h1 className="text-lg font-bold leading-snug">{novel.title}</h1>
-              {!novel.siteSupported && (
+              {chapters.length === 0 && (
                 <button onClick={startEditingTitle} aria-label="タイトルを編集" className="shrink-0 text-muted">
                   <PencilIcon className="h-3.5 w-3.5" />
                 </button>
@@ -242,9 +242,9 @@ export default function NovelDetailPage() {
           >
             {position ? "続きから読む" : "読み始める"}
           </Link>
-        ) : novel.siteSupported ? (
-          <p className="text-center text-sm text-muted">この作品はまだ話一覧を取得できません。</p>
         ) : (
+          // continueChapterIdはchapters[0]?.idからも導出されるため、ここに来る時点で
+          // chaptersは必ず空(＝アプリ内で読める話が無い)。外部サイトへの導線を表示する。
           <a
             href={novel.sourceUrl}
             target="_blank"
@@ -321,11 +321,11 @@ export default function NovelDetailPage() {
           </button>
         )}
 
-        {novel.siteSupported && (
+        {chapters.length > 0 && (
           <div className="flex flex-col gap-1">
             <button
               onClick={downloadAll}
-              disabled={downloading || chapters.length === 0}
+              disabled={downloading}
               className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
             >
               {downloading ? "取得中...(話数が多いと数分かかります)" : "全話をオフライン保存"}
