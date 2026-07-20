@@ -3,6 +3,7 @@ package com.novelshelf.presentation.settings;
 import com.novelshelf.application.settings.SettingsService;
 import com.novelshelf.domain.user.FontFamily;
 import com.novelshelf.domain.user.PageMode;
+import com.novelshelf.domain.user.PageTurnGesture;
 import com.novelshelf.domain.user.UserSettings;
 import com.novelshelf.domain.user.WritingMode;
 import java.util.UUID;
@@ -33,7 +34,8 @@ public class SettingsController {
             String backgroundColor,
             String theme,
             PageMode pageMode,
-            String shelfSortOrder) {
+            String shelfSortOrder,
+            PageTurnGesture pageTurnGesture) {
         static UserSettingsDto from(UserSettings s) {
             return new UserSettingsDto(
                     s.isDarkMode(),
@@ -45,7 +47,8 @@ public class SettingsController {
                     s.getBackgroundColor(),
                     s.getTheme(),
                     s.getPageMode(),
-                    s.getShelfSortOrder());
+                    s.getShelfSortOrder(),
+                    s.getPageTurnGesture());
         }
 
         UserSettings toEntity() {
@@ -60,6 +63,7 @@ public class SettingsController {
                     .theme(theme)
                     .pageMode(pageMode)
                     .shelfSortOrder(shelfSortOrder)
+                    .pageTurnGesture(pageTurnGesture)
                     .build();
         }
     }

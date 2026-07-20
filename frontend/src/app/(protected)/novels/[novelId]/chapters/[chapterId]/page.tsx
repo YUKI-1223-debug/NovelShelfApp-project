@@ -179,6 +179,7 @@ export default function ReaderPage() {
   const startedAtRef = useRef<number>(0);
   const restoreFractionRef = useRef<number | null>(null);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const currentChapter = chapters[currentIndex];
@@ -578,9 +579,44 @@ export default function ReaderPage() {
   useVolumeButtonPaging(volumeButtonPaging, pageForward, pageBack);
 
   const DOUBLE_TAP_MS = 300;
+  // スワイプ判定の閾値。SWIPE_MAX_OFF_AXISは、指が斜めに大きくブレた場合や縦スクロールの
+  // 意図と誤認しないようにするための直交方向の許容量。
+  const SWIPE_MIN_DISTANCE = 50;
+  const SWIPE_MAX_OFF_AXIS = 60;
+
+  // ページ送りモードでのタップ/スワイプ操作は設定(settings.pageTurnGesture)でどちらか一方を
+  // 選べるようにしている（両方同時に有効だと、スワイプの指離しでタップも誤発火しかねないため）。
+  function handleContentTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (!isPaged || settings.pageTurnGesture !== "SWIPE") return;
+    const t = e.touches[0];
+    swipeStartRef.current = { x: t.clientX, y: t.clientY };
+  }
+
+  function handleContentTouchEnd(e: React.TouchEvent<HTMLDivElement>) {
+    if (!isPaged || settings.pageTurnGesture !== "SWIPE" || !swipeStartRef.current) return;
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    const t = e.changedTouches[0];
+    const deltaX = t.clientX - start.x;
+    const deltaY = t.clientY - start.y;
+    if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaY) > SWIPE_MAX_OFF_AXIS) return;
+    // 縦書き(右→左に読み進む)は横書きと前後の向きが逆になる（タップ判定と同じ理由）。
+    const isVertical = settings.writingMode === "VERTICAL";
+    const isForwardSwipe = isVertical ? deltaX > 0 : deltaX < 0;
+    if (isForwardSwipe) {
+      pageForward();
+    } else {
+      pageBack();
+    }
+  }
 
   function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
     if (isPaged) {
+      if (settings.pageTurnGesture !== "TAP") {
+        setChromeVisible((v) => !v);
+        setShowSettings(false);
+        return;
+      }
       const rect = e.currentTarget.getBoundingClientRect();
       const xRatio = (e.clientX - rect.left) / rect.width;
       // 縦書き(右→左に読み進む)は横書きと左右のタップ方向が逆になる:
@@ -647,6 +683,8 @@ export default function ReaderPage() {
       <div
         ref={scrollRef}
         onClick={handleContentClick}
+        onTouchStart={handleContentTouchStart}
+        onTouchEnd={handleContentTouchEnd}
         className={
           isPaged ? "absolute inset-0 overflow-hidden" : `absolute inset-0 overflow-auto ${paddingClass} py-6`
         }
@@ -799,6 +837,12 @@ export default function ReaderPage() {
             </button>
             <button onClick={toggleVolumeButtonPaging} className="rounded-full border border-border px-3 py-1">
               音量ボタン送り: {volumeButtonPaging ? "ON" : "OFF"}
+            </button>
+            <button
+              onClick={() => update({ pageTurnGesture: settings.pageTurnGesture === "TAP" ? "SWIPE" : "TAP" })}
+              className="rounded-full border border-border px-3 py-1"
+            >
+              ページ送り操作: {settings.pageTurnGesture === "TAP" ? "タップ" : "スワイプ"}
             </button>
             <button
               onClick={() => {

@@ -68,6 +68,11 @@ public class UserSettings {
     @Builder.Default
     private String shelfSortOrder = "ADDED_DESC";
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "page_turn_gesture", nullable = false, length = 20)
+    @Builder.Default
+    private PageTurnGesture pageTurnGesture = PageTurnGesture.TAP;
+
     @Column(name = "updated_at", nullable = false)
     @Builder.Default
     private Instant updatedAt = Instant.now();

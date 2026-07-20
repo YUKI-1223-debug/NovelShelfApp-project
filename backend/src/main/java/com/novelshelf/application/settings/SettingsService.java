@@ -37,6 +37,7 @@ public class SettingsService {
         current.setTheme(incoming.getTheme());
         current.setPageMode(incoming.getPageMode());
         current.setShelfSortOrder(incoming.getShelfSortOrder());
+        current.setPageTurnGesture(incoming.getPageTurnGesture());
         current.setUpdatedAt(Instant.now());
         return userSettingsRepository.save(current);
     }

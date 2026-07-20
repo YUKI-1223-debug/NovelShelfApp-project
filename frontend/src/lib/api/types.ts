@@ -5,6 +5,7 @@ export type WritingMode = "VERTICAL" | "HORIZONTAL";
 export type FontFamily = "MINCHO" | "GOTHIC";
 export type PageMode = "PAGINATION" | "SCROLL";
 export type ShelfSortOrder = "ADDED_DESC" | "RECENT_DESC";
+export type PageTurnGesture = "TAP" | "SWIPE";
 
 export interface AuthTokens {
   accessToken: string;
@@ -116,6 +117,7 @@ export interface UserSettings {
   theme: string;
   pageMode: PageMode;
   shelfSortOrder: ShelfSortOrder;
+  pageTurnGesture: PageTurnGesture;
 }
 
 export interface StatsSummary {

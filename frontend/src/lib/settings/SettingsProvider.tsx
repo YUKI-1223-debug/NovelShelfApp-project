@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: "DEFAULT",
   pageMode: "SCROLL",
   shelfSortOrder: "ADDED_DESC",
+  pageTurnGesture: "TAP",
 };
 
 interface SettingsContextValue {
