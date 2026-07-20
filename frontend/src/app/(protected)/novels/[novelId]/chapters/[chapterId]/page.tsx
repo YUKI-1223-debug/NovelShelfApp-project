@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
@@ -10,6 +10,13 @@ import type { Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
 import { queuePendingPosition } from "@/lib/offline/positionQueue";
+import { useVolumeButtonPaging } from "@/lib/reader/useVolumeButtonPaging";
+import {
+  getVolumeButtonPagingPref,
+  getVolumeButtonPagingPrefServerSnapshot,
+  setVolumeButtonPagingPref,
+  subscribeVolumeButtonPagingPref,
+} from "@/lib/reader/volumeButtonPagingPref";
 
 const MARGIN_PADDING: Record<string, string> = {
   SMALL: "px-3",
@@ -131,6 +138,17 @@ export default function ReaderPage() {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [bookmarkScroll, setBookmarkScroll] = useState(0);
   const [fromCache, setFromCache] = useState(false);
+  // 音量ボタンでのページ送りは端末のハードウェア機能に依存するため、サーバー同期される
+  // UserSettingsではなく端末ローカルのlocalStorageにON/OFFを保持する（既定OFF: 常時無音
+  // オーディオを再生する裏技のため、意図せず有効になることを避ける）。
+  const volumeButtonPaging = useSyncExternalStore(
+    subscribeVolumeButtonPagingPref,
+    getVolumeButtonPagingPref,
+    getVolumeButtonPagingPrefServerSnapshot
+  );
+  const toggleVolumeButtonPaging = useCallback(() => {
+    setVolumeButtonPagingPref(!getVolumeButtonPagingPref());
+  }, []);
   // ページ送りモード: 横書きはCSS多段組(columns)で本文を「画面ぴったりの列」に分割し、
   // scrollLeftを列幅ぶんずつ動かすことでページをめくる。縦書きはCSS columnsを使わず、
   // 実測した行位置ベースでページ境界を算出する（下のcomputeVerticalPageBoundaries参照。
@@ -190,18 +208,28 @@ export default function ReaderPage() {
         tapTimerRef.current = null;
       }
       startedAtRef.current = Date.now();
-      // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
-      // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
-      restoreFractionRef.current = 0;
 
-      readingApi
-        .getPosition(novelId)
-        .then((pos) => {
-          if (!cancelled && pos.chapterId === chapterId) {
-            restoreFractionRef.current = pos.scrollPosition / 100;
-          }
-        })
-        .catch(() => {});
+      // 話末での二回タップ・音量ボタン等で「前の話の末尾」を明示的に指定して遷移してきた場合、
+      // URLに?pos=endが付与される（goToのtoEndオプション参照）。この場合は保存済みの読書位置
+      // より常にこちらを優先する（ユーザーが明示的に末尾へ戻る操作をしたため）。
+      const openAtEnd = new URLSearchParams(window.location.search).get("pos") === "end";
+      if (openAtEnd) {
+        restoreFractionRef.current = 1;
+        window.history.replaceState(null, "", window.location.pathname);
+      } else {
+        // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
+        // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
+        restoreFractionRef.current = 0;
+
+        readingApi
+          .getPosition(novelId)
+          .then((pos) => {
+            if (!cancelled && pos.chapterId === chapterId) {
+              restoreFractionRef.current = pos.scrollPosition / 100;
+            }
+          })
+          .catch(() => {});
+      }
 
       // オフラインキャッシュは「ネットワークが使えない場合のフォールバック」としてのみ使う。
       // キャッシュを優先すると、サーバー側で本文が更新（誤字修正・不具合修正等）されても
@@ -421,6 +449,18 @@ export default function ReaderPage() {
     return max <= 0 || el.scrollTop >= max * 0.995;
   }, [settings.writingMode]);
 
+  // 話頭に到達しているかどうか。isAtChapterEndと対になる判定（0%/100%の向きが逆）。
+  const isAtChapterStart = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return false;
+    if (settings.writingMode === "VERTICAL") {
+      const max = el.scrollWidth - el.clientWidth;
+      return max <= 0 || el.scrollLeft >= max * 0.995;
+    }
+    const max = el.scrollHeight - el.clientHeight;
+    return max <= 0 || el.scrollTop <= max * 0.005;
+  }, [settings.writingMode]);
+
   const saveProgress = useCallback(() => {
     if (!scrollRef.current) return;
     const scrollPosition = computeScrollFraction();
@@ -451,21 +491,28 @@ export default function ReaderPage() {
     };
   }, []);
 
+  // toEnd: 遷移先の話を末尾（最終ページ／スクロール最下部相当）から開く。前の話へ「戻る」操作
+  // （話頭での二回タップ、音量ボタン等）で使う。URLに?pos=endを付与し、遷移先のマウント時に
+  // 読み込みuseEffectが解釈する（該当箇所参照）。
   const goTo = useCallback(
-    (chapter: Chapter | undefined) => {
+    (chapter: Chapter | undefined, options?: { toEnd?: boolean }) => {
       if (!chapter) return;
       saveProgress();
-      router.push(`/novels/${novelId}/chapters/${chapter.id}`);
+      const suffix = options?.toEnd ? "?pos=end" : "";
+      router.push(`/novels/${novelId}/chapters/${chapter.id}${suffix}`);
     },
     [saveProgress, router, novelId]
   );
 
   // ページ送りモードでのページ移動。末尾ページより先に進もうとしたら次の話へ、
-  // 先頭ページより前には戻らない（前の話への自動遷移はしない仕様、フッターのボタンを使う）。
+  // 先頭ページより前に戻ろうとしたら前の話の末尾へ移動する。
   const goToPage = useCallback(
     (index: number) => {
       if (viewportSize.width === 0) return;
-      if (index < 0) return;
+      if (index < 0) {
+        goTo(prevChapter, { toEnd: true });
+        return;
+      }
       if (index >= pageCount) {
         goTo(nextChapter);
         return;
@@ -484,8 +531,51 @@ export default function ReaderPage() {
         el.scrollLeft = index * viewportSize.width;
       }
     },
-    [viewportSize.width, pinnedWidth, pageCount, goTo, nextChapter, settings.writingMode]
+    [viewportSize.width, pinnedWidth, pageCount, goTo, nextChapter, prevChapter, settings.writingMode]
   );
+
+  // 音量ボタン・将来のキーボード操作等、タップ以外の入力からもページ送りできるようにする共通処理。
+  // ページ送りモードではgoToPageへ委譲し、スクロールモードでは画面1枚分弱ずつスクロールする
+  // （端に達している場合は前後の話へ移動する。話頭に戻る場合は前の話の末尾から開く）。
+  const pageForward = useCallback(() => {
+    if (isPaged) {
+      goToPage(pageIndex + 1);
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isAtChapterEnd()) {
+      goTo(nextChapter);
+      return;
+    }
+    if (settings.writingMode === "VERTICAL") {
+      el.scrollLeft = Math.max(0, el.scrollLeft - el.clientWidth * 0.9);
+    } else {
+      const max = el.scrollHeight - el.clientHeight;
+      el.scrollTop = Math.min(max, el.scrollTop + el.clientHeight * 0.9);
+    }
+  }, [isPaged, goToPage, pageIndex, settings.writingMode, isAtChapterEnd, goTo, nextChapter]);
+
+  const pageBack = useCallback(() => {
+    if (isPaged) {
+      goToPage(pageIndex - 1);
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isAtChapterStart()) {
+      goTo(prevChapter, { toEnd: true });
+      return;
+    }
+    if (settings.writingMode === "VERTICAL") {
+      const max = el.scrollWidth - el.clientWidth;
+      el.scrollLeft = Math.min(max, el.scrollLeft + el.clientWidth * 0.9);
+    } else {
+      el.scrollTop = Math.max(0, el.scrollTop - el.clientHeight * 0.9);
+    }
+  }, [isPaged, goToPage, pageIndex, settings.writingMode, isAtChapterStart, goTo, prevChapter]);
+
+  useVolumeButtonPaging(volumeButtonPaging, pageForward, pageBack);
 
   const DOUBLE_TAP_MS = 300;
 
@@ -507,16 +597,22 @@ export default function ReaderPage() {
       return;
     }
 
-    // 話末で画面左側をダブルタップしたら次の話へ移動する。1回目のタップは
-    // ダブルタップ待ちのため即座にはトグルせず、猶予時間内に2回目が来なければ
-    // 通常どおりイマーシブ表示のトグルとして扱う。
+    // 話末で画面左側をダブルタップしたら次の話へ、話頭で画面右側をダブルタップしたら
+    // 前の話の末尾へ移動する。1回目のタップは二回タップ待ちのため即座にはトグルせず、
+    // 猶予時間内に2回目が来なければ通常どおりイマーシブ表示のトグルとして扱う。
     const rect = e.currentTarget.getBoundingClientRect();
     const xRatio = (e.clientX - rect.left) / rect.width;
-    if (xRatio < 0.3 && nextChapter && isAtChapterEnd()) {
+    const isNextChapterTarget = xRatio < 0.3 && nextChapter && isAtChapterEnd();
+    const isPrevChapterTarget = xRatio > 0.7 && prevChapter && isAtChapterStart();
+    if (isNextChapterTarget || isPrevChapterTarget) {
       if (tapTimerRef.current) {
         clearTimeout(tapTimerRef.current);
         tapTimerRef.current = null;
-        goTo(nextChapter);
+        if (isNextChapterTarget) {
+          goTo(nextChapter);
+        } else {
+          goTo(prevChapter, { toEnd: true });
+        }
         return;
       }
       tapTimerRef.current = setTimeout(() => {
@@ -700,6 +796,9 @@ export default function ReaderPage() {
             </div>
             <button onClick={() => update({ darkMode: !settings.darkMode })} className="rounded-full border border-border px-3 py-1">
               {settings.darkMode ? "ライトモード" : "ダークモード"}
+            </button>
+            <button onClick={toggleVolumeButtonPaging} className="rounded-full border border-border px-3 py-1">
+              音量ボタン送り: {volumeButtonPaging ? "ON" : "OFF"}
             </button>
             <button
               onClick={() => {
