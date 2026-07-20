@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
-import { ChartIcon, HeartIcon, PlusIcon } from "@/components/icons";
+import { ChartIcon, ExternalLinkIcon, HeartIcon, PlusIcon } from "@/components/icons";
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfSortOrder, type ShelfStatus } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -192,6 +192,17 @@ export default function BookshelfPage() {
                   </p>
                 )}
               </Link>
+              {!entry.novel.siteSupported && (
+                <a
+                  href={entry.novel.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="外部サイトで開く"
+                  className="shrink-0 text-muted"
+                >
+                  <ExternalLinkIcon className="h-5 w-5" />
+                </a>
+              )}
               <button onClick={() => toggleFavorite(entry)} aria-label="お気に入り切替" className="shrink-0">
                 <HeartIcon
                   filled={entry.isFavorite}

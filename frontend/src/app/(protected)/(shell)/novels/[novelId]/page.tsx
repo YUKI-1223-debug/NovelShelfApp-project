@@ -242,8 +242,17 @@ export default function NovelDetailPage() {
           >
             {position ? "続きから読む" : "読み始める"}
           </Link>
-        ) : (
+        ) : novel.siteSupported ? (
           <p className="text-center text-sm text-muted">この作品はまだ話一覧を取得できません。</p>
+        ) : (
+          <a
+            href={novel.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-accent-foreground"
+          >
+            外部サイトで読む
+          </a>
         )}
 
         {shelfEntry ? (
