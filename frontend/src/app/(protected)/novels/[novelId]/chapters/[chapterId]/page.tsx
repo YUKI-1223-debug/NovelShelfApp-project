@@ -187,6 +187,7 @@ export default function ReaderPage() {
   const restoreFractionRef = useRef<number | null>(null);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const justSwipedRef = useRef(false);
 
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const currentChapter = chapters[currentIndex];
@@ -496,6 +497,22 @@ export default function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId]);
 
+  // スマホでアプリを裏に回す(タブ切り替え/ホーム画面に戻る等)と、しばらくしてOS側でページが
+  // 破棄されることがあり、その場合上のアンマウント時保存(cleanup)は実行されない。次に開いた時に
+  // 古い保存位置（話の先頭等）まで戻ってしまう不具合の原因だったため、非表示になった時点でも
+  // 保存しておく。pagehideはvisibilitychangeより後に発火しない場合がある(bfcache等)ため両方登録する。
+  useEffect(() => {
+    const handleHide = () => {
+      if (document.hidden) saveProgress();
+    };
+    document.addEventListener("visibilitychange", handleHide);
+    window.addEventListener("pagehide", saveProgress);
+    return () => {
+      document.removeEventListener("visibilitychange", handleHide);
+      window.removeEventListener("pagehide", saveProgress);
+    };
+  }, [saveProgress]);
+
   useEffect(() => {
     return () => {
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
@@ -618,9 +635,19 @@ export default function ReaderPage() {
     } else {
       pageBack();
     }
+    // 指を離した後、ブラウザ/端末によってはこのtouchendの後にclickイベントが合成される
+    // ことがあり、そのままだと下のhandleContentClickでヘッダー/フッターの表示切替
+    // （200msのスライドアニメーション）まで毎回余計に発生してしまう。ページ送りの
+    // 描画と競合して「たまに反応が遅い」ように見える原因になっていたため、直後の
+    // clickは無視する。
+    justSwipedRef.current = true;
   }
 
   function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (justSwipedRef.current) {
+      justSwipedRef.current = false;
+      return;
+    }
     if (isPaged) {
       if (settings.pageTurnGesture !== "TAP") {
         setChromeVisible((v) => !v);
