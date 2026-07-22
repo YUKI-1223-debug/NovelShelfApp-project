@@ -829,21 +829,22 @@ export default function ReaderPage() {
         }`}
       >
         <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
-          <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
-            <ChevronLeftIcon className="h-4 w-4" /> 戻る
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
+              <ChevronLeftIcon className="h-4 w-4" /> 戻る
+            </button>
+            <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
+              話一覧
+            </Link>
+          </div>
           <span className="truncate px-2 text-xs text-muted">
             {currentChapter ? `第${currentChapter.chapterNo}話 / ${chapters.length}話` : ""}
             {fromCache && " ・ オフライン"}
           </span>
-          <div className="flex items-center gap-3">
-            <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
-              話一覧
-            </Link>
-            <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
-              Aa
-            </button>
-          </div>
+          {/* Aaボタンは話一覧/戻るから最大限離す(誤タップ防止のため、あえて反対端に単独配置)。 */}
+          <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
+            Aa
+          </button>
         </header>
 
         {showSettings && (

@@ -7,6 +7,7 @@ import { ChartIcon, ExternalLinkIcon, HeartIcon, PlusIcon, TrashIcon } from "@/c
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfSortOrder, type ShelfStatus } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { useSettings } from "@/lib/settings/SettingsProvider";
+import { useIsStandalone } from "@/lib/utils/useIsStandalone";
 
 type FilterKey = "ALL" | ShelfStatus | "FAVORITE" | "UPDATED";
 
@@ -59,6 +60,7 @@ export default function BookshelfPage() {
   // 端末があったため、ネイティブダイアログではなく画面内の確認バーで代用する。
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const isStandalone = useIsStandalone();
 
   const load = useCallback(async (key: FilterKey, sort: ShelfSortOrder) => {
     setIsLoading(true);
@@ -289,8 +291,8 @@ export default function BookshelfPage() {
                 {!selectMode && entry.novel.latestKnownChapterNo === 0 && (
                   <a
                     href={entry.novel.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target={isStandalone ? undefined : "_blank"}
+                    rel={isStandalone ? undefined : "noopener noreferrer"}
                     aria-label="外部サイトで開く"
                     className="shrink-0 text-muted"
                   >

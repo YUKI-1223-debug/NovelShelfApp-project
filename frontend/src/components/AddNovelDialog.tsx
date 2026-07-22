@@ -2,6 +2,7 @@
 
 import { forwardRef, useState, type FormEvent } from "react";
 import { ApiError, novelsApi, shelfApi } from "@/lib/api";
+import { useIsStandalone } from "@/lib/utils/useIsStandalone";
 
 interface AddNovelDialogProps {
   onAdded: () => void;
@@ -31,6 +32,7 @@ export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const isStandalone = useIsStandalone();
 
   function closeDialog() {
     if (ref && "current" in ref) ref.current?.close();
@@ -102,8 +104,8 @@ export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>
               <a
                 key={site.label}
                 href={site.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={isStandalone ? undefined : "_blank"}
+                rel={isStandalone ? undefined : "noopener noreferrer"}
                 className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground"
               >
                 {site.label}
