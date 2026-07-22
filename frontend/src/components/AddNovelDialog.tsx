@@ -2,7 +2,7 @@
 
 import { forwardRef, useState, type FormEvent } from "react";
 import { ApiError, novelsApi, shelfApi } from "@/lib/api";
-import { useIsStandalone } from "@/lib/utils/useIsStandalone";
+import { toStandaloneExternalHref, useIsStandalone } from "@/lib/utils/useIsStandalone";
 
 interface AddNovelDialogProps {
   onAdded: () => void;
@@ -103,7 +103,7 @@ export const AddNovelDialog = forwardRef<HTMLDialogElement, AddNovelDialogProps>
             {SEARCH_LINKS.map((site) => (
               <a
                 key={site.label}
-                href={site.url}
+                href={isStandalone ? toStandaloneExternalHref(site.url) : site.url}
                 target={isStandalone ? undefined : "_blank"}
                 rel={isStandalone ? undefined : "noopener noreferrer"}
                 className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground"
