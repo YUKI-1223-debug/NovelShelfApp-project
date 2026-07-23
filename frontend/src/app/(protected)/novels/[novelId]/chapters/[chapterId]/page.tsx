@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
@@ -10,13 +10,6 @@ import type { Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
 import { queuePendingPosition } from "@/lib/offline/positionQueue";
-import { useVolumeButtonPaging } from "@/lib/reader/useVolumeButtonPaging";
-import {
-  getVolumeButtonPagingPref,
-  getVolumeButtonPagingPrefServerSnapshot,
-  setVolumeButtonPagingPref,
-  subscribeVolumeButtonPagingPref,
-} from "@/lib/reader/volumeButtonPagingPref";
 
 const MARGIN_PADDING: Record<string, string> = {
   SMALL: "px-3",
@@ -138,17 +131,6 @@ export default function ReaderPage() {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [bookmarkScroll, setBookmarkScroll] = useState(0);
   const [fromCache, setFromCache] = useState(false);
-  // 音量ボタンでのページ送りは端末のハードウェア機能に依存するため、サーバー同期される
-  // UserSettingsではなく端末ローカルのlocalStorageにON/OFFを保持する（既定OFF: 常時無音
-  // オーディオを再生する裏技のため、意図せず有効になることを避ける）。
-  const volumeButtonPaging = useSyncExternalStore(
-    subscribeVolumeButtonPagingPref,
-    getVolumeButtonPagingPref,
-    getVolumeButtonPagingPrefServerSnapshot
-  );
-  const toggleVolumeButtonPaging = useCallback(() => {
-    setVolumeButtonPagingPref(!getVolumeButtonPagingPref());
-  }, []);
   // ページ送りモード: 横書きはCSS多段組(columns)で本文を「画面ぴったりの列」に分割し、
   // scrollLeftを列幅ぶんずつ動かすことでページをめくる。縦書きはCSS columnsを使わず、
   // 実測した行位置ベースでページ境界を算出する（下のcomputeVerticalPageBoundaries参照。
@@ -307,15 +289,36 @@ export default function ReaderPage() {
 
   // ページ送りモード時、ビューポート(スクロール領域)の実サイズを1ページ分の幅・高さとして測っておく
   // （横書きはCSS columnsの列幅に、縦書きは実測ベースのページ境界算出に使う）。
+  // モバイルブラウザはタップ/スワイプ操作のたびにアドレスバーの表示・非表示が切り替わり、
+  // h-dvhで確保している実高さが細かく変動する。ResizeObserverの発火のたびに素直に
+  // setViewportSizeすると、縦書きページ送りの重い実測処理（measureVerticalLines、
+  // 本文の文字数ぶんRangeを作る）が読書中ずっと再実行されてしまい、端末の発熱・
+  // バッテリー消費の原因になっていた（実機検証で確認）。短い間隔での連続発火を1回に
+  // まとめ（デバウンス）、かつ値が実際に変わっていない場合は再計算しないようにする。
   useEffect(() => {
     if (!isPaged) return;
     const el = scrollRef.current;
     if (!el) return;
-    const measure = () => setViewportSize({ width: el.clientWidth, height: el.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let last = { width: -1, height: -1 };
+    const apply = () => {
+      timer = null;
+      const width = el.clientWidth;
+      const height = el.clientHeight;
+      if (width === last.width && height === last.height) return;
+      last = { width, height };
+      setViewportSize({ width, height });
+    };
+    apply();
+    const ro = new ResizeObserver(() => {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(apply, 200);
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (timer !== null) clearTimeout(timer);
+    };
   }, [isPaged]);
 
   // 第1パス: widthを明示指定しない自然なレイアウトでscrollWidthを測り、画面幅の整数倍に
@@ -603,8 +606,6 @@ export default function ReaderPage() {
     }
   }, [isPaged, goToPage, pageIndex, settings.writingMode, isAtChapterStart, goTo, prevChapter]);
 
-  useVolumeButtonPaging(volumeButtonPaging, pageForward, pageBack);
-
   const DOUBLE_TAP_MS = 300;
   // スワイプ判定の閾値。SWIPE_MAX_OFF_AXISは、指が斜めに大きくブレた場合や縦スクロールの
   // 意図と誤認しないようにするための直交方向の許容量。
@@ -878,9 +879,6 @@ export default function ReaderPage() {
             </div>
             <button onClick={() => update({ darkMode: !settings.darkMode })} className="rounded-full border border-border px-3 py-1">
               {settings.darkMode ? "ライトモード" : "ダークモード"}
-            </button>
-            <button onClick={toggleVolumeButtonPaging} className="rounded-full border border-border px-3 py-1">
-              音量ボタン送り: {volumeButtonPaging ? "ON" : "OFF"}
             </button>
             <button
               onClick={() => update({ pageTurnGesture: settings.pageTurnGesture === "TAP" ? "SWIPE" : "TAP" })}
