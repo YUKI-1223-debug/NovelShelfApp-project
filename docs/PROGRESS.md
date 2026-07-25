@@ -4,7 +4,7 @@
 
 ## 現在の進捗
 
-**Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中**。ユーザー報告3件（本棚追加時のタイトル欠落・検索機能の作り直し・読書画面のお気に入り、下記「ユーザー報告3件の対応」参照）に対応したコミットをデプロイ手順に沿って本番反映予定（[NEXT_TASK.md](NEXT_TASK.md)参照）。
+**Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中**。ユーザー報告3件＋追加要望1件（本棚追加時のタイトル欠落・検索機能の作り直し・読書画面のお気に入り・統計画面の廃止、下記「ユーザー報告3件の対応」参照）に対応したコミット(`8b91989`)をVPSへデプロイ済み（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み、2026-07-26）。
 
 未対応: `www.novelshelf.jp`（`nginx.conf`の`server_name`が`novelshelf.jp`固定のため、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。次のアクションは[NEXT_TASK.md](NEXT_TASK.md)参照。
 

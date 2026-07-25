@@ -4,7 +4,7 @@
 
 Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中。
 
-**2026-07-26セッション**: ユーザー報告3件＋追加要望1件に対応、ローカルコミット・GitHub push済み。**VPS再デプロイがまだ（このセッションの最優先タスク）**。
+**2026-07-26セッション**: ユーザー報告3件＋追加要望1件に対応、コミット・push・VPS再デプロイまで完了（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み）。
 - ①本棚に追加したとき小説名が表示されないことがある不具合を修正（`IngestService`のタイトル空文字/null検証漏れ、[DECISIONS.md](DECISIONS.md)参照）
 - ②`/search`画面を廃止、本棚画面に小説名フィルターを追加
 - ③読書画面（チャプター表示）からもお気に入り登録できるように
@@ -14,12 +14,11 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 
 ## 次に行うこと（優先順位順）
 
-1. **VPS再デプロイ**: `docs/DEPLOY.md`ステップ7（`git pull` → `docker/`ディレクトリで`docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.prod.yml up -d --build`）。プロダクション変更を伴うためユーザーが`!`コマンドで実行する（[[feedback_production_deploy_handoff]]方針）。
-2. **ユーザーによる実機確認**（[USER_TODO.md](USER_TODO.md)参照）: 本棚のタイトル欠落解消・本棚の検索フィルター・読書画面のお気に入りハート・`/stats`が消えていることを確認してもらう。
-3. **（任意・時間があれば）縦書きページ送りの根本修正**: CSS `columns`の`column-gap`がvertical-rlで実測可能な形で反映されていない可能性が高く、CSS任せのアプローチ自体を見直す必要がありそう（詳細は[DECISIONS.md](DECISIONS.md)の2026-07-19エントリ参照）。優先度は低め（横書きで代替可能）。
-4. **ブラウザ拡張機能の実機インストール確認**（[USER_TODO.md](USER_TODO.md)参照）
-5. **（任意）パスワードリセットのSMTP設定**（[USER_TODO.md](USER_TODO.md)）
-6. **（任意・iPhone/iPad）共有機能用iOSショートカット作成**（[USER_TODO.md](USER_TODO.md)）
+1. **ユーザーによる実機確認**（[USER_TODO.md](USER_TODO.md)参照）: 本棚のタイトル欠落解消・本棚の検索フィルター・読書画面のお気に入りハート・`/stats`が消えていることを確認してもらう。
+2. **（任意・時間があれば）縦書きページ送りの根本修正**: CSS `columns`の`column-gap`がvertical-rlで実測可能な形で反映されていない可能性が高く、CSS任せのアプローチ自体を見直す必要がありそう（詳細は[DECISIONS.md](DECISIONS.md)の2026-07-19エントリ参照）。優先度は低め（横書きで代替可能）。
+3. **ブラウザ拡張機能の実機インストール確認**（[USER_TODO.md](USER_TODO.md)参照）
+4. **（任意）パスワードリセットのSMTP設定**（[USER_TODO.md](USER_TODO.md)）
+5. **（任意・iPhone/iPad）共有機能用iOSショートカット作成**（[USER_TODO.md](USER_TODO.md)）
 
 ## 注意事項
 
