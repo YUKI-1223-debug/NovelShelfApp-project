@@ -4,13 +4,16 @@
 
 Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中。
 
-**2026-07-26セッション**: ユーザー報告3件＋追加要望1件に対応、コミット・push・VPS再デプロイまで完了（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み）。
+**2026-07-26セッション**: ユーザー報告3件＋追加要望2件に対応、コミット・push・VPS再デプロイ（2回、コミット`8b91989`→`82f47d5`）まで完了（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み）。
 - ①本棚に追加したとき小説名が表示されないことがある不具合を修正（`IngestService`のタイトル空文字/null検証漏れ、[DECISIONS.md](DECISIONS.md)参照）
 - ②`/search`画面を廃止、本棚画面に小説名フィルターを追加
 - ③読書画面（チャプター表示）からもお気に入り登録できるように
 - ④（追加要望）読書統計画面（`/stats`）を廃止
+- ⑤「追加順」ソートで最後に追加した作品が先頭に来ない不具合を修正（`BookshelfController`のソート処理漏れ）
+- ⑥（追加要望）本棚の検索フィルターにサイト別（なろう/カクヨム/ハーメルン等）の絞り込みを追加
+- ハーメルン通常版（`syosetu.org`）でもBot対策によるアクセス拒否が起きることが判明（[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。回避策（Bot対策の突破）は方針上行わず、見送りとした。
 
-詳細は[PROGRESS.md](PROGRESS.md)参照。バックエンド単体テスト（Testcontainers不要分22件）・フロントエンド型チェック/単体テスト/本番ビルドはすべて成功。Docker Desktop未起動のためTestcontainers統合テスト・Playwright E2Eは今回未実施（ユーザーが本番で直接確認する方針、[USER_TODO.md](USER_TODO.md)参照）。
+詳細は[PROGRESS.md](PROGRESS.md)参照。バックエンド単体テスト（Testcontainers不要分23件）・フロントエンド型チェック/単体テスト/本番ビルドはすべて成功。Docker Desktop未起動のためTestcontainers統合テスト・Playwright E2Eは今回未実施（ユーザーが本番で直接確認する方針、[USER_TODO.md](USER_TODO.md)参照）。
 
 ## 次に行うこと（優先順位順）
 
