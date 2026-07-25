@@ -62,6 +62,11 @@ public class BookshelfController {
                     .thenComparing(Comparator.comparing(BookshelfEntryResponse::addedAt).reversed()));
         } else if (groupBy != null) {
             responses.sort(groupComparator(groupBy));
+        } else {
+            // 既定(「追加順」、sort/groupByともに未指定)。DBクエリにORDER BY句が無く、フェッチ結果の
+            // 並びはDBの内部順序に依存する(挿入順とは限らない)ため、ここで明示的に追加日時の降順
+            // (最後に追加した作品が先頭)にソートする。
+            responses.sort(Comparator.comparing(BookshelfEntryResponse::addedAt).reversed());
         }
         return responses;
     }

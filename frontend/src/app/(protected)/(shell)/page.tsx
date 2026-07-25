@@ -4,7 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
 import { ExternalLinkIcon, HeartIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
-import { ApiError, shelfApi, type BookshelfEntry, type ShelfSortOrder, type ShelfStatus } from "@/lib/api";
+import {
+  ApiError,
+  shelfApi,
+  sitesApi,
+  type BookshelfEntry,
+  type Site,
+  type SiteCode,
+  type ShelfSortOrder,
+  type ShelfStatus,
+} from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { toStandaloneExternalHref, useIsStandalone } from "@/lib/utils/useIsStandalone";
@@ -58,6 +67,8 @@ export default function BookshelfPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
   const [titleQuery, setTitleQuery] = useState("");
+  const [siteFilter, setSiteFilter] = useState<SiteCode | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
   // PWAのスタンドアロン表示ではwindow.confirm()が機能しない(何も表示されず即falseになる)
   // 端末があったため、ネイティブダイアログではなく画面内の確認バーで代用する。
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -102,15 +113,23 @@ export default function BookshelfPage() {
     queueMicrotask(() => load(filter, sortOrder));
   }, [filter, sortOrder, settingsLoading, load]);
 
+  useEffect(() => {
+    queueMicrotask(() => {
+      sitesApi.list().then(setSites).catch(() => {});
+    });
+  }, []);
+
   const statusFiltered = filter === "UPDATED" ? entries.filter((e) => e.novel.hasUpdate) : entries;
   const trimmedQuery = titleQuery.trim().toLowerCase();
-  const visibleEntries = trimmedQuery
-    ? statusFiltered.filter((e) => e.novel.title.toLowerCase().includes(trimmedQuery))
-    : statusFiltered;
+  const visibleEntries = statusFiltered
+    .filter((e) => !trimmedQuery || e.novel.title.toLowerCase().includes(trimmedQuery))
+    .filter((e) => !siteFilter || e.novel.site === siteFilter);
+  const isFiltering = trimmedQuery !== "" || siteFilter !== null;
 
   function closeSearch() {
     setSearchOpen(false);
     setTitleQuery("");
+    setSiteFilter(null);
   }
 
   async function toggleFavorite(entry: BookshelfEntry) {
@@ -194,19 +213,44 @@ export default function BookshelfPage() {
       </div>
 
       {searchOpen && (
-        <div className="flex items-center gap-2">
-          <input
-            type="search"
-            autoFocus
-            inputMode="search"
-            placeholder="小説名で絞り込み"
-            value={titleQuery}
-            onChange={(e) => setTitleQuery(e.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent"
-          />
-          <button onClick={closeSearch} className="shrink-0 px-2 text-xs font-medium text-muted">
-            閉じる
-          </button>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="search"
+              autoFocus
+              inputMode="search"
+              placeholder="小説名で絞り込み"
+              value={titleQuery}
+              onChange={(e) => setTitleQuery(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <button onClick={closeSearch} className="shrink-0 px-2 text-xs font-medium text-muted">
+              閉じる
+            </button>
+          </div>
+          {sites.length > 0 && (
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              <button
+                onClick={() => setSiteFilter(null)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  siteFilter === null ? "border-accent bg-accent-tint text-accent-soft" : "border-border text-muted"
+                }`}
+              >
+                すべてのサイト
+              </button>
+              {sites.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSiteFilter(s.code)}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    siteFilter === s.code ? "border-accent bg-accent-tint text-accent-soft" : "border-border text-muted"
+                  }`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -275,8 +319,8 @@ export default function BookshelfPage() {
         <p className="py-8 text-center text-sm text-muted">読み込み中...</p>
       ) : visibleEntries.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">
-          {trimmedQuery
-            ? `「${titleQuery.trim()}」に一致する作品が見つかりませんでした。`
+          {isFiltering
+            ? "条件に一致する作品が見つかりませんでした。"
             : "まだ作品がありません。右上の「＋」からURLを追加してください。"}
         </p>
       ) : (
