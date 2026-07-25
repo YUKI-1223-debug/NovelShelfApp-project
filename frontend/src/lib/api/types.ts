@@ -120,22 +120,6 @@ export interface UserSettings {
   pageTurnGesture: PageTurnGesture;
 }
 
-export interface StatsSummary {
-  totalCompletedNovels: number;
-  totalReadChapters: number;
-  totalReadingSeconds: number;
-}
-
-export interface BreakdownItem {
-  label: string;
-  readingSeconds: number;
-}
-
-export interface CalendarDay {
-  date: string;
-  readingSeconds: number;
-}
-
 export interface OfflineSavePreference {
   chapterId: string;
   autoCached: boolean;

@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BellIcon, BookmarkIcon, SearchIcon, SettingsIcon, ShelfIcon } from "./icons";
+import { BellIcon, BookmarkIcon, SettingsIcon, ShelfIcon } from "./icons";
 
 const ITEMS = [
   { href: "/", label: "本棚", icon: ShelfIcon },
-  { href: "/search", label: "検索", icon: SearchIcon },
   { href: "/updates", label: "更新", icon: BellIcon },
   { href: "/bookmarks", label: "しおり", icon: BookmarkIcon },
   { href: "/settings", label: "設定", icon: SettingsIcon },

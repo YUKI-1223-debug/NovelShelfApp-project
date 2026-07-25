@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
-import { ChartIcon, ExternalLinkIcon, HeartIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { ExternalLinkIcon, HeartIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { ApiError, shelfApi, type BookshelfEntry, type ShelfSortOrder, type ShelfStatus } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -56,6 +56,8 @@ export default function BookshelfPage() {
   const [fromCache, setFromCache] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [titleQuery, setTitleQuery] = useState("");
   // PWAのスタンドアロン表示ではwindow.confirm()が機能しない(何も表示されず即falseになる)
   // 端末があったため、ネイティブダイアログではなく画面内の確認バーで代用する。
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -100,7 +102,16 @@ export default function BookshelfPage() {
     queueMicrotask(() => load(filter, sortOrder));
   }, [filter, sortOrder, settingsLoading, load]);
 
-  const visibleEntries = filter === "UPDATED" ? entries.filter((e) => e.novel.hasUpdate) : entries;
+  const statusFiltered = filter === "UPDATED" ? entries.filter((e) => e.novel.hasUpdate) : entries;
+  const trimmedQuery = titleQuery.trim().toLowerCase();
+  const visibleEntries = trimmedQuery
+    ? statusFiltered.filter((e) => e.novel.title.toLowerCase().includes(trimmedQuery))
+    : statusFiltered;
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setTitleQuery("");
+  }
 
   async function toggleFavorite(entry: BookshelfEntry) {
     setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, isFavorite: !e.isFavorite } : e)));
@@ -161,13 +172,15 @@ export default function BookshelfPage() {
               <button onClick={() => setSelectMode(true)} className="px-2 text-xs font-medium text-muted">
                 選択
               </button>
-              <Link
-                href="/stats"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted"
-                aria-label="読書統計"
+              <button
+                onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border ${
+                  searchOpen ? "border-accent text-accent-soft" : "border-border text-muted"
+                }`}
+                aria-label="小説名で検索"
               >
-                <ChartIcon className="h-5 w-5" />
-              </Link>
+                <SearchIcon className="h-5 w-5" />
+              </button>
               <button
                 onClick={() => dialogRef.current?.showModal()}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground"
@@ -179,6 +192,23 @@ export default function BookshelfPage() {
           )}
         </div>
       </div>
+
+      {searchOpen && (
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            autoFocus
+            inputMode="search"
+            placeholder="小説名で絞り込み"
+            value={titleQuery}
+            onChange={(e) => setTitleQuery(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <button onClick={closeSearch} className="shrink-0 px-2 text-xs font-medium text-muted">
+            閉じる
+          </button>
+        </div>
+      )}
 
       {confirmingDelete && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-update bg-update-tint px-3 py-2">
@@ -245,7 +275,9 @@ export default function BookshelfPage() {
         <p className="py-8 text-center text-sm text-muted">読み込み中...</p>
       ) : visibleEntries.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">
-          まだ作品がありません。右上の「＋」からURLを追加してください。
+          {trimmedQuery
+            ? `「${titleQuery.trim()}」に一致する作品が見つかりませんでした。`
+            : "まだ作品がありません。右上の「＋」からURLを追加してください。"}
         </p>
       ) : (
         <div className="flex flex-col divide-y divide-border">

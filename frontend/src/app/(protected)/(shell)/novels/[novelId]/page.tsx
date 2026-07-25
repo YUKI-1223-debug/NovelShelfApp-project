@@ -215,11 +215,9 @@ export default function NovelDetailPage() {
           ) : (
             <div className="flex items-center gap-1.5">
               <h1 className="text-lg font-bold leading-snug">{novel.title}</h1>
-              {chapters.length === 0 && (
-                <button onClick={startEditingTitle} aria-label="タイトルを編集" className="shrink-0 text-muted">
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <button onClick={startEditingTitle} aria-label="タイトルを編集" className="shrink-0 text-muted">
+                <PencilIcon className="h-3.5 w-3.5" />
+              </button>
             </div>
           )}
           <Link href={`/authors/${encodeURIComponent(novel.author)}`} className="text-sm text-accent-soft underline underline-offset-2">

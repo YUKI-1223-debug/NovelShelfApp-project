@@ -77,7 +77,10 @@ public class IngestService {
                         .siteId(site.getId())
                         .authorId(finalAuthor.getId())
                         .externalNovelId(meta.externalNovelId())
-                        .title(meta.title())
+                        // アダプタがページ構造の想定外(一時的なレイアウト崩れ等)でタイトルを
+                        // 空文字/nullのまま返してくることがある。空のままDBへ保存すると本棚に
+                        // 何も表示されなくなるため、プレースホルダー登録と同様URLへフォールバックする。
+                        .title(isBlank(meta.title()) ? meta.sourceUrl() : meta.title())
                         .synopsis(meta.synopsis())
                         .genre(meta.genre())
                         .sourceUrl(meta.sourceUrl())
@@ -90,13 +93,22 @@ public class IngestService {
 
     private Novel applyMetadata(Novel novel, ExternalNovelMetadata meta, UUID authorId) {
         novel.setAuthorId(authorId);
-        novel.setTitle(meta.title());
+        // 既存作品の再取得(更新確認・再追加など)で、サイト側の一時的な取得失敗により
+        // タイトルが空文字/nullで返ってきた場合、既に持っている正しいタイトルを空で
+        // 上書きしてしまわないようスキップする。
+        if (!isBlank(meta.title())) {
+            novel.setTitle(meta.title());
+        }
         novel.setSynopsis(meta.synopsis());
         novel.setGenre(meta.genre());
         novel.setStatus(meta.status());
         novel.setLatestKnownChapterNo(meta.totalChapters());
         novel.setUpdatedAt(Instant.now());
         return novel;
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     private Novel resolvePlaceholder(Site site, String url) {

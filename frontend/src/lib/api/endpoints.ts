@@ -3,8 +3,6 @@ import type {
   AuthTokens,
   Bookmark,
   BookshelfEntry,
-  BreakdownItem,
-  CalendarDay,
   Chapter,
   ChapterContent,
   ChapterWithContent,
@@ -16,7 +14,6 @@ import type {
   ShelfStatus,
   Site,
   SiteCode,
-  StatsSummary,
   Tag,
   UserSettings,
 } from "./types";
@@ -109,13 +106,6 @@ export const bookmarksApi = {
 export const settingsApi = {
   get: () => apiFetch<UserSettings>("/settings"),
   update: (settings: UserSettings) => apiFetch<UserSettings>("/settings", { method: "PUT", body: settings }),
-};
-
-export const statsApi = {
-  summary: () => apiFetch<StatsSummary>("/stats/summary"),
-  breakdown: (by: "month" | "site" | "author", range?: "today" | "week" | "month" | "year" | "all") =>
-    apiFetch<BreakdownItem[]>(`/stats/breakdown?by=${by}${range ? `&range=${range}` : ""}`),
-  calendar: (yearMonth: string) => apiFetch<CalendarDay[]>(`/stats/calendar?yearMonth=${yearMonth}`),
 };
 
 export const updatesApi = {

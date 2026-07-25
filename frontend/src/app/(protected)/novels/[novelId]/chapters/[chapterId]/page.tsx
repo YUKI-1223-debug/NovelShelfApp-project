@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
-import { ApiError, novelsApi, readingApi } from "@/lib/api";
-import type { Chapter } from "@/lib/api";
+import { ChevronLeftIcon, ChevronRightIcon, HeartIcon } from "@/components/icons";
+import { ApiError, novelsApi, readingApi, shelfApi } from "@/lib/api";
+import type { BookshelfEntry, Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
 import { queuePendingPosition } from "@/lib/offline/positionQueue";
@@ -179,6 +179,26 @@ export default function ReaderPage() {
   useEffect(() => {
     novelsApi.chapters(novelId).then(setChapters).catch(() => {});
   }, [novelId]);
+
+  const [shelfEntry, setShelfEntry] = useState<BookshelfEntry | null>(null);
+  useEffect(() => {
+    shelfApi
+      .list()
+      .then((list) => setShelfEntry(list.find((e) => e.novel.id === novelId) ?? null))
+      .catch(() => {});
+  }, [novelId]);
+
+  async function toggleFavorite() {
+    if (!shelfEntry) return;
+    const next = !shelfEntry.isFavorite;
+    setShelfEntry({ ...shelfEntry, isFavorite: next });
+    try {
+      const updated = await shelfApi.update(shelfEntry.id, { isFavorite: next });
+      setShelfEntry(updated);
+    } catch {
+      setShelfEntry({ ...shelfEntry, isFavorite: !next });
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -843,9 +863,19 @@ export default function ReaderPage() {
             {fromCache && " ・ オフライン"}
           </span>
           {/* Aaボタンは話一覧/戻るから最大限離す(誤タップ防止のため、あえて反対端に単独配置)。 */}
-          <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
-            Aa
-          </button>
+          <div className="flex items-center gap-3">
+            {shelfEntry && (
+              <button onClick={toggleFavorite} aria-label="お気に入り切替">
+                <HeartIcon
+                  filled={shelfEntry.isFavorite}
+                  className={`h-5 w-5 ${shelfEntry.isFavorite ? "text-update" : "text-muted"}`}
+                />
+              </button>
+            )}
+            <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
+              Aa
+            </button>
+          </div>
         </header>
 
         {showSettings && (

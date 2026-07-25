@@ -1,12 +1,23 @@
 # 進捗記録 (PROGRESS)
 
-最終更新: 2026-07-19
+最終更新: 2026-07-26
 
 ## 現在の進捗
 
-**Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中**（2026-07-19）。ConoHa VPS（IP: `163.44.116.137`）上でDocker Compose（backend/frontend/postgres/nginx、いずれもhealthy）が稼働し、Let's Encrypt証明書によるHTTPS・証明書自動更新cron（毎週月曜4:00）まで設定済み。GitHubリモート`YUKI-1223-debug/NovelShelfApp-project`にpush→VPS上で`git pull`→`docker compose up -d --build`という再デプロイ手順（[DEPLOY.md](DEPLOY.md)ステップ7）も実際に1回通した。デプロイされているのはユーザー報告のバグ2件・R18サイト対応・オフライン対応拡張を含む最新コミット`06ea9aa`（下記「Phase6中の追加改修」参照）。
+**Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中**。ユーザー報告3件（本棚追加時のタイトル欠落・検索機能の作り直し・読書画面のお気に入り、下記「ユーザー報告3件の対応」参照）に対応したコミットをデプロイ手順に沿って本番反映予定（[NEXT_TASK.md](NEXT_TASK.md)参照）。
 
 未対応: `www.novelshelf.jp`（`nginx.conf`の`server_name`が`novelshelf.jp`固定のため、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。次のアクションは[NEXT_TASK.md](NEXT_TASK.md)参照。
+
+## 完了した作業（ユーザー報告3件の対応、2026-07-26）
+
+ユーザーからの改善要望3件に対応。詳細・判断根拠は[DECISIONS.md](DECISIONS.md)参照。
+
+- **①本棚に追加したとき小説名が表示されないことがある不具合を修正**: `IngestService`にタイトルの空文字/nullチェックが無く、アダプタがページ構造の想定外でタイトル抽出に失敗すると空タイトルがそのまま保存され、既存作品の再取得時には正しいタイトルを空で上書きすることもあったのが原因。新規登録時はURLへフォールバック、再取得時は空タイトルで上書きしないよう`IngestService.java`を修正。回帰テスト`IngestServiceTest`（2ケース）を追加。あわせてフロントエンドのタイトル手動編集（鉛筆アイコン）をこれまでの「話数0件のときだけ表示」から常時表示に変更し、原因を問わずユーザー自身で修正できるようにした（`novels/[novelId]/page.tsx`）。
+- **②`/search`画面を廃止し、本棚画面に小説名フィルターを追加**: 本棚画面右上に検索ボタンを新設、押下で小説名の入力欄が現れ、入力文字列を含むタイトルの作品にクライアント側でその場で絞り込まれる（`(shell)/page.tsx`）。`/search`ページ・`BottomNav`の検索リンク・`/search`専用だった`genreLabels.ts`（ジャンルコード→日本語ラベル変換）を削除。E2Eテスト（`critical-journey.spec.ts`）の該当ステップを本棚画面での検索フィルター操作に置き換え。バックエンドの`GET /novels/search`は作者ページが使用しているため削除していない。
+- **③読書画面からお気に入り登録できるようにする**: 読書画面のヘッダー（本文タップで表示するイマーシブUI）に、本棚画面と同じハートアイコンを追加。`shelfApi.list()`で`novelId`が一致するエントリを探して`isFavorite`を表示・トグルする方式（作品詳細画面の既存パターンを踏襲）。
+- 設定画面の使い方ガイド（`/settings/guide`）の記述も上記の変更に合わせて更新。
+- **④（追加要望）読書統計画面（`/stats`）を廃止**: 本棚画面右上のグラフアイコン導線ごと削除。フロントエンド専用だった`statsApi`・型・`formatDuration`ユーティリティも削除。バックエンドの`StatsController`/`StatsService`は「画面」の廃止依頼だったため残置（[DECISIONS.md](DECISIONS.md)参照）。
+- 検証: バックエンド単体テスト（Testcontainers不要な22件、新規`IngestServiceTest`含む）全成功。Docker Desktopが起動していなかったため、Testcontainers依存の統合テスト14件は今回未実施（既存の環境制約、コード変更とは無関係）。フロントエンドは型チェック・`npx vitest run`（④実施後は9件）・`npm run build`（本番ビルド）すべて成功、`/search`・`/stats`両ルートが正しく消えたことも確認。ブラウザでの実地確認（Playwright E2E）はDocker未起動のため未実施 — ユーザーが本番環境で直接確認する方針（[USER_TODO.md](USER_TODO.md)参照）。
 
 ## 完了した作業（読書画面イマーシブ表示のタップ切替・ブラウザ拡張機能・ページ送り(横書きのみ)、2026-07-19）
 

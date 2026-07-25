@@ -80,10 +80,10 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
     await expect(page.getByText("E2Eテストしおり")).toBeVisible();
   });
 
-  await test.step("検索画面でタイトル検索でき、作品詳細に遷移できる", async () => {
-    await page.goto("/search");
-    await page.getByPlaceholder("タイトルまたは作者名").fill("パーティリーダー");
-    await page.getByRole("button", { name: "検索", exact: true }).click();
+  await test.step("本棚画面で小説名検索フィルターができ、作品詳細に遷移できる", async () => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "小説名で検索" }).click();
+    await page.getByPlaceholder("小説名で絞り込み").fill("パーティリーダー");
     await expect(page.getByText(NOVEL_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByText(NOVEL_TITLE).first().click();
@@ -103,14 +103,6 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
     await expect(page.getByRole("heading", { name: "更新一覧" })).toBeVisible();
     await page.getByRole("button", { name: "更新を確認" }).click();
     await expect(page.getByText(/更新確認をリクエストしました|失敗しました/)).toBeVisible({ timeout: 10_000 });
-  });
-
-  await test.step("統計画面にサマリー・カレンダー・内訳が表示される", async () => {
-    await page.goto("/stats");
-    await expect(page.getByRole("heading", { name: "読書統計" })).toBeVisible();
-    await expect(page.getByText("読了作品数")).toBeVisible();
-    await expect(page.getByText("総読書時間")).toBeVisible();
-    await page.getByRole("button", { name: "作者別" }).click();
   });
 
   await test.step("設定画面でフォント設定を変更でき、リロード後も保持される", async () => {
