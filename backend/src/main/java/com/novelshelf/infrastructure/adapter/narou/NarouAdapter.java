@@ -165,31 +165,61 @@ public class NarouAdapter implements NovelSiteAdapter {
         return isR18ExternalId(externalNovelId) ? properties.r18SiteBaseUrl() : properties.siteBaseUrl();
     }
 
+    // 話一覧が100話を超えると目次ページ自体が?p=2, ?p=3...とページングされる（1ページ最大100話）。
+    // 無限ループ化を避けるための保険として上限を設ける（10000話超の作品は現実的に存在しない想定）。
+    private static final int MAX_TOC_PAGES = 100;
+
     @Override
     public List<ExternalChapter> fetchChapterList(String externalNovelId) {
         String ncode = rawNcode(externalNovelId);
         String siteBaseUrl = siteBaseUrlFor(externalNovelId);
         String tocUrl = siteBaseUrl + "/" + ncode + "/";
-        Document doc = fetchHtml(tocUrl);
 
         List<ExternalChapter> chapters = new ArrayList<>();
-        for (Element item : doc.select("div.p-eplist__sublist")) {
-            Element link = item.selectFirst("a.p-eplist__subtitle");
-            if (link == null) {
-                continue;
+        Document firstDoc = null;
+        String currentArcTitle = null;
+        String pageUrl = tocUrl;
+        for (int page = 0; pageUrl != null && page < MAX_TOC_PAGES; page++) {
+            Document doc = fetchHtml(pageUrl);
+            if (firstDoc == null) {
+                firstDoc = doc;
             }
-            String href = link.attr("href");
-            int chapterNo = extractChapterNo(href);
-            String title = link.text().trim();
-            Instant publishedAt = parseUpdateDate(item.selectFirst("div.p-eplist__update"));
-            chapters.add(
-                    new ExternalChapter(String.valueOf(chapterNo), chapterNo, title, siteBaseUrl + href, publishedAt));
+            Element list = doc.selectFirst("div.p-eplist");
+            if (list == null) {
+                break;
+            }
+            // 章題(p-eplist__chapter-title)と話(p-eplist__sublist)はp-eplist直下に出現順で
+            // 並んでいるため、順番に走査して直近に出た章題を各話に紐付ける。
+            for (Element el : list.children()) {
+                if (el.hasClass("p-eplist__chapter-title")) {
+                    currentArcTitle = el.text().trim();
+                    continue;
+                }
+                if (!el.hasClass("p-eplist__sublist")) {
+                    continue;
+                }
+                Element link = el.selectFirst("a.p-eplist__subtitle");
+                if (link == null) {
+                    continue;
+                }
+                String href = link.attr("href");
+                int chapterNo = extractChapterNo(href);
+                String title = link.text().trim();
+                Instant publishedAt = parseUpdateDate(el.selectFirst("div.p-eplist__update"));
+                chapters.add(new ExternalChapter(
+                        String.valueOf(chapterNo), chapterNo, title, currentArcTitle, siteBaseUrl + href, publishedAt));
+            }
+            // 次ページへのリンクは、次ページが存在する間だけ<a>として出現する
+            // （最終ページでは同じクラスの<span>になりhrefを持たない）。
+            Element nextLink = doc.selectFirst("a.c-pager__item--next");
+            pageUrl = nextLink != null ? siteBaseUrl + nextLink.attr("href") : null;
         }
-        if (chapters.isEmpty()) {
-            // 短編(単話)は話一覧(p-eplist__sublist)を持たず、作品トップページ自体が本文ページになる。
-            Element titleEl = doc.selectFirst("h1.p-novel__title");
+
+        if (chapters.isEmpty() && firstDoc != null) {
+            // 短編(単話)は話一覧(p-eplist)を持たず、作品トップページ自体が本文ページになる。
+            Element titleEl = firstDoc.selectFirst("h1.p-novel__title");
             if (titleEl != null) {
-                chapters.add(new ExternalChapter(TANPEN_CHAPTER_ID, 1, titleEl.text().trim(), tocUrl, null));
+                chapters.add(new ExternalChapter(TANPEN_CHAPTER_ID, 1, titleEl.text().trim(), null, tocUrl, null));
             }
         }
         return chapters;

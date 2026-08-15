@@ -4,6 +4,11 @@
 
 Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中。
 
+**2026-08-16セッション**: ユーザー報告2件に対応（コミット・push・VPS再デプロイは未実施、[DECISIONS.md](DECISIONS.md)参照）。
+- ①なろうの話一覧が100話超で2ページ目以降を取りこぼす不具合を修正（`NarouAdapter`が目次の「次へ」ページャを最終ページまで辿るように変更。1ページ目のURL登録だけで全話取り込み可能）
+- ②なろう・カクヨムの話一覧の「章」グループ分けをアプリ側の話一覧にも見出しとして表示するように対応（`Chapter.arcTitle`追加、`V8__chapter_arc_title.sql`）。ハーメルンは未対応（実機確認できず）
+- バックエンド単体テスト（Testcontainers不要分23件）・フロントエンド型チェック/lint/単体テスト/本番ビルドはすべて成功。Docker Desktop未起動のためTestcontainers統合テストは今回も未実施（Testcontainers系14件の失敗は本変更と無関係の既存の環境要因、[KNOWN_ISSUES.md](KNOWN_ISSUES.md)参照）。
+
 **2026-07-26セッション**: ユーザー報告3件＋追加要望2件に対応、コミット・push・VPS再デプロイ（2回、コミット`8b91989`→`82f47d5`）まで完了（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み）。
 - ①本棚に追加したとき小説名が表示されないことがある不具合を修正（`IngestService`のタイトル空文字/null検証漏れ、[DECISIONS.md](DECISIONS.md)参照）
 - ②`/search`画面を廃止、本棚画面に小説名フィルターを追加
@@ -17,6 +22,7 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 
 ## 次に行うこと（優先順位順）
 
+0. **（今回セッション分）コミット・push・VPS再デプロイ**: 2026-08-16セッションの変更はまだコミットしていない。デプロイ手順は[DEPLOY.md](DEPLOY.md)ステップ7参照。DBマイグレーション（`V8__chapter_arc_title.sql`）を含むため、`docker compose up -d --build`でbackend再起動時にFlywayが自動適用することを`docker compose ps`のhealthyで確認する。
 1. **ユーザーによる実機確認**（[USER_TODO.md](USER_TODO.md)参照）: 本棚のタイトル欠落解消・本棚の検索フィルター・読書画面のお気に入りハート・`/stats`が消えていることを確認してもらう。
 2. **（任意・時間があれば）縦書きページ送りの根本修正**: CSS `columns`の`column-gap`がvertical-rlで実測可能な形で反映されていない可能性が高く、CSS任せのアプローチ自体を見直す必要がありそう（詳細は[DECISIONS.md](DECISIONS.md)の2026-07-19エントリ参照）。優先度は低め（横書きで代替可能）。
 3. **ブラウザ拡張機能の実機インストール確認**（[USER_TODO.md](USER_TODO.md)参照）

@@ -45,6 +45,7 @@ export interface Chapter {
   novelId: string;
   chapterNo: number;
   title: string;
+  arcTitle: string | null;
   publishedAt: string | null;
 }
 

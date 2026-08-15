@@ -31,6 +31,10 @@ public class Chapter {
     @Column(nullable = false, length = 500)
     private String title;
 
+    // サイト側で話が「章」単位にグループ分けされている場合の章題。章分けが無い作品・サイトではnull。
+    @Column(name = "arc_title", length = 500)
+    private String arcTitle;
+
     @Column(name = "chapter_no", nullable = false)
     private int chapterNo;
 

@@ -162,7 +162,7 @@ public class HamelnAdapter implements NovelSiteAdapter {
         if (!chapters.isEmpty()) {
             return chapters;
         }
-        return List.of(new ExternalChapter(TANPEN_CHAPTER_ID, 1, title, topUrl, null));
+        return List.of(new ExternalChapter(TANPEN_CHAPTER_ID, 1, title, null, topUrl, null));
     }
 
     private List<ExternalChapter> parseChapterList(Document doc, String siteBaseUrl, String novelId) {
@@ -183,6 +183,9 @@ public class HamelnAdapter implements NovelSiteAdapter {
                     String.valueOf(chapterNo),
                     chapterNo,
                     link.text().trim(),
+                    // ハーメルンの目次テーブルに章グループ分けがあるか未確認のため、当面はnull固定
+                    // （docs/KNOWN_ISSUES.md参照）。
+                    null,
                     siteBaseUrl + "/novel/" + novelId + "/" + chapterNo + ".html",
                     publishedAt));
         }

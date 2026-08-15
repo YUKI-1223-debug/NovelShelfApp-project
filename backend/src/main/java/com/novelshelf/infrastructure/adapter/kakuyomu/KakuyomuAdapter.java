@@ -107,6 +107,10 @@ public class KakuyomuAdapter implements NovelSiteAdapter {
         int chapterNo = 0;
         for (JsonNode tocRef : work.path("tableOfContentsV2")) {
             JsonNode tocChapter = resolveRef(apollo, tocRef);
+            // 章分けの無い作品ではtocChapter.chapterがnullになる（Apollo正規化キャッシュ上も
+            // 明示的なnullとして入っており、resolveRefはこの場合MissingNodeを返す）。
+            JsonNode chapterNode = resolveRef(apollo, tocChapter.path("chapter"));
+            String arcTitle = chapterNode.isMissingNode() ? null : chapterNode.path("title").asString();
             for (JsonNode episodeRef : tocChapter.path("episodeUnions")) {
                 JsonNode episode = resolveRef(apollo, episodeRef);
                 if (episode.isMissingNode()) {
@@ -119,6 +123,7 @@ public class KakuyomuAdapter implements NovelSiteAdapter {
                         episodeId,
                         chapterNo,
                         episode.path("title").asString(),
+                        arcTitle,
                         properties.siteBaseUrl() + "/works/" + externalNovelId + "/episodes/" + episodeId,
                         publishedAt));
             }

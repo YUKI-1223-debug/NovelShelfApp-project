@@ -335,18 +335,22 @@ export default function NovelDetailPage() {
 
       <div className="flex flex-col gap-1 pb-6">
         <h2 className="text-sm font-bold text-muted">話一覧（全{chapters.length}話）</h2>
-        {chapters.map((c) => (
-          <Link
-            key={c.id}
-            href={`/novels/${novel.id}/chapters/${c.id}`}
-            className={`flex items-center justify-between rounded-lg px-2 py-2.5 text-sm hover:bg-card ${
-              c.id === position?.chapterId ? "bg-accent-tint text-accent-soft" : ""
-            }`}
-          >
-            <span className="truncate">
-              第{c.chapterNo}話 {c.title}
-            </span>
-          </Link>
+        {chapters.map((c, i) => (
+          <div key={c.id}>
+            {c.arcTitle && c.arcTitle !== chapters[i - 1]?.arcTitle && (
+              <h3 className="mt-2 truncate px-2 text-xs font-bold text-muted">{c.arcTitle}</h3>
+            )}
+            <Link
+              href={`/novels/${novel.id}/chapters/${c.id}`}
+              className={`flex items-center justify-between rounded-lg px-2 py-2.5 text-sm hover:bg-card ${
+                c.id === position?.chapterId ? "bg-accent-tint text-accent-soft" : ""
+              }`}
+            >
+              <span className="truncate">
+                第{c.chapterNo}話 {c.title}
+              </span>
+            </Link>
+          </div>
         ))}
       </div>
     </div>

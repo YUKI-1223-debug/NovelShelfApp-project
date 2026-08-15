@@ -688,6 +688,7 @@ components:
         novelId: { type: string, format: uuid }
         chapterNo: { type: integer }
         title: { type: string }
+        arcTitle: { type: string, nullable: true }
         publishedAt: { type: string, format: date-time }
 
     ChapterContent:

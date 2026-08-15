@@ -115,6 +115,7 @@ public class NovelQueryService {
                     .findByNovelIdAndExternalChapterId(novelId, ec.externalChapterId())
                     .map(existing -> {
                         existing.setTitle(ec.title());
+                        existing.setArcTitle(ec.arcTitle());
                         existing.setPublishedAt(ec.publishedAt());
                         existing.setSourceUrl(ec.sourceUrl());
                         return existing;
@@ -124,6 +125,7 @@ public class NovelQueryService {
                             .externalChapterId(ec.externalChapterId())
                             .chapterNo(ec.chapterNo())
                             .title(ec.title())
+                            .arcTitle(ec.arcTitle())
                             .sourceUrl(ec.sourceUrl())
                             .publishedAt(ec.publishedAt())
                             .build());
