@@ -17,8 +17,12 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 （`backend/gradlew`のGit実行権限欠落が原因。本番には影響なし。詳細は[DECISIONS.md](DECISIONS.md)
 2026-08-18の項）。あわせて、上記の通りNEXT_TASK.mdの「デプロイ未実施」表記が実態と食い違っていた
 ことも発覚したため本ドキュメントを実態に合わせて修正。
-**残課題**: `e2e-live.yml`のPlaywright E2Eジョブは上記gradlew問題とは別原因で失敗している
-（`npm run test:e2e`ステップ自体の失敗。ログ取得に`gh` CLI認証が必要で今回未調査、下記参照）。
+続けて`e2e-live.yml`のPlaywright E2Eジョブも調査・修正した。Docker Desktopを起動しローカルで
+`docker compose up --build`→`npm run test:e2e`を再現したところ、原因はテストコードの陳腐化
+3件（「作品を追加」ダイアログのplaceholder変更未追随、読書画面のイマーシブ表示(タップで
+ヘッダー表示)への未対応、なろう実作品の総話数ハードコード）と判明、修正してローカルで
+1 passed を確認済み（詳細は[DECISIONS.md](DECISIONS.md) 2026-08-18の項）。まだpush前
+（下記「次に行うこと」参照）。
 
 **2026-07-26セッション**: ユーザー報告3件＋追加要望2件に対応、コミット・push・VPS再デプロイ（2回、コミット`8b91989`→`82f47d5`）まで完了（`docker compose ps`で4コンテナhealthy、`https://novelshelf.jp/`が200を確認済み）。
 - ①本棚に追加したとき小説名が表示されないことがある不具合を修正（`IngestService`のタイトル空文字/null検証漏れ、[DECISIONS.md](DECISIONS.md)参照）
@@ -33,9 +37,9 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 
 ## 次に行うこと（優先順位順）
 
-0. **`e2e-live.yml`のPlaywright E2Eジョブ失敗の原因調査**: gradlew権限問題とは別原因。ログ取得には
-   `gh` CLI認証（このマシンには未インストール）かユーザーからのログ共有が必要。もしくはDocker Desktop
-   を起動してもらえればローカルで`npm run test:e2e`を再現できる可能性がある。
+0. **E2Eテスト修正のコミット・push**: `frontend/e2e/critical-journey.spec.ts`の修正がまだ
+   コミットされていない（本番コードには影響しないテストのみの変更）。pushすれば次回の
+   「なろう疎通確認」ワークフロー実行（週次 or 手動）でCI側の成功も確認できる。
 1. **ユーザーによる実機確認**（[USER_TODO.md](USER_TODO.md)参照）: 本棚のタイトル欠落解消・本棚の検索フィルター・読書画面のお気に入りハート・`/stats`が消えていることを確認してもらう。
 2. **（任意・時間があれば）縦書きページ送りの根本修正**: CSS `columns`の`column-gap`がvertical-rlで実測可能な形で反映されていない可能性が高く、CSS任せのアプローチ自体を見直す必要がありそう（詳細は[DECISIONS.md](DECISIONS.md)の2026-07-19エントリ参照）。優先度は低め（横書きで代替可能）。
 3. **ブラウザ拡張機能の実機インストール確認**（[USER_TODO.md](USER_TODO.md)参照）

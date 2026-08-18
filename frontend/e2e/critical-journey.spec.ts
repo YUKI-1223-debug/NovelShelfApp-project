@@ -29,7 +29,7 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
 
     const dialog = page.locator("dialog");
     await expect(dialog).toBeVisible();
-    await dialog.getByPlaceholder("https://ncode.syosetu.com/xxxxxx/").fill(NAROU_URL);
+    await dialog.getByPlaceholder("URLを貼り付け、または空欄のまま「追加」でコピー済みURLを使用").fill(NAROU_URL);
     await dialog.getByRole("button", { name: "追加" }).click();
 
     await expect(dialog).toBeHidden();
@@ -45,7 +45,9 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
     await page.getByRole("link", { name: "読み始める" }).click();
 
     await expect(page).toHaveURL(/\/chapters\//);
-    await expect(page.getByText("第1話 / 15話")).toBeVisible({ timeout: 15_000 });
+    // 総話数は実際のなろう側で作者が更新すると変わりうる（実際に運用中2026-07→2026-08で15→46話に
+    // 増えたことが判明）ため、総数は固定せず「第1話であること」だけを検証する。
+    await expect(page.getByText(/第1話 \/ \d+話/)).toBeVisible({ timeout: 15_000 });
 
     const bodyText = await page.locator("article").innerText();
     expect(bodyText.length).toBeGreaterThan(20);
@@ -53,10 +55,14 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
 
   await test.step("次の話に移動できる", async () => {
     await page.getByRole("button", { name: "次の話" }).click();
-    await expect(page.getByText("第2話 / 15話")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/第2話 \/ \d+話/)).toBeVisible({ timeout: 15_000 });
   });
 
   await test.step("縦書き/横書き・ダークモードを切り替えられる", async () => {
+    // 話送り(次の話)で新しい話に遷移すると、イマーシブ表示(ヘッダー/フッター)が既定の
+    // 非表示状態に戻る。本文の中央付近をタップして表示させてからでないとAaボタンを
+    // 操作できない。
+    await page.locator("article").click();
     await page.getByRole("button", { name: "Aa" }).click();
     await expect(page.getByRole("button", { name: "縦書き" })).toBeVisible();
 
