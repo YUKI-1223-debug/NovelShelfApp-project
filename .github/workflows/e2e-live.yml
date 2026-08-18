@@ -20,7 +20,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - run: ./gradlew externalTest
+      - run: chmod +x gradlew && ./gradlew externalTest
 
   e2e:
     name: Playwright E2E (Docker Compose full stack)

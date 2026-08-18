@@ -32,7 +32,7 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Build and test (external なろう疎通テストは除外)
-        run: ./gradlew build
+        run: chmod +x gradlew && ./gradlew build
 
   frontend:
     name: Frontend lint, typecheck, unit test, build
