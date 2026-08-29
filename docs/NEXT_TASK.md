@@ -2,7 +2,13 @@
 
 ## 状況
 
-Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中。
+Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中（現時点は ConoHa VPS `163.44.116.137`）。
+
+**2026-08-29セッション**: 本番を **ConoHa VPS → 自宅ミニPC** へ移設する方針が確定（[DECISIONS.md](DECISIONS.md) 2026-08-29 の項）。
+公開方式は Cloudflare Tunnel + AI Secretary と共有の Caddy。自前 `nginx`/`certbot` は廃止。
+移設ランブック: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。ミニPC全体のセットアップ手順は
+`WorkSpace/ミニPC-Linux移行手順.md`、ユーザー作業チェックリストは `WorkSpace/ミニPC移行_ユーザー作業チェックリスト.md`。
+ミニPC実機は 2026-08-30 頃到着予定。**移設着手前に下記「次に行うこと」の0〜2を済ませること。**
 
 **2026-08-16セッション**: ユーザー報告2件に対応。コミット(`f047971`)・push・VPS再デプロイは
 **実際には完了していた**ことを2026-08-18セッションで確認（本ドキュメントの「未実施」表記が更新漏れで
@@ -36,6 +42,23 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 詳細は[PROGRESS.md](PROGRESS.md)参照。バックエンド単体テスト（Testcontainers不要分23件）・フロントエンド型チェック/単体テスト/本番ビルドはすべて成功。Docker Desktop未起動のためTestcontainers統合テスト・Playwright E2Eは今回未実施（ユーザーが本番で直接確認する方針、[USER_TODO.md](USER_TODO.md)参照）。
 
 ## 次に行うこと（優先順位順）
+
+### ミニPC移設まわり（最優先。実機到着後に着手）
+
+- **M0. `docker/docker-compose.minipc.yml` の作成・コミット**: VPS用 `docker-compose.prod.yml` に相当するミニPC版。
+  `nginx`/`certbot` を含まず、外部ネットワーク `edge` に `novelshelf-frontend`/`novelshelf-backend` エイリアスで参加、
+  `ports: !reset []`。YAML雛形は [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の 1-4。
+  **`networks:` に `default` を明示すること**（忘れると backend が postgres に繋がらない）。
+- **M1. `/download` のクライアント分割方式への改修**: [DECISIONS.md](DECISIONS.md) 2026-08-29 の項。
+  Cloudflare の 100秒制限(524) 対策。移設前に本棚最大作品で実測（`ミニPC-Linux移行手順.md` 9-3）してから判断。
+  `frontend/src/app/(protected)/(shell)/novels/[novelId]/page.tsx` の `downloadAll()` と
+  `frontend/src/lib/api/endpoints.ts` の `novelsApi.downloadAll` が対象。
+- **M2. 移設実行**: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の手順どおり。
+  本番操作コマンドは Claude が用意 → ユーザーが `!` で実行（[production deploy handoff の方針]）。
+- **M3. 移設後**: `DEPLOY.md` を「旧VPS手順（アーカイブ）」に位置づけ変更＋再デプロイ手順をミニPC版へ。
+  restic バックアップ cron 化・リストア試験（`ミニPC-Linux移行手順.md` 13章）。T+21d で ConoHa 解約。
+
+### 既存タスク
 
 0. **E2Eテスト修正のコミット・push**: `frontend/e2e/critical-journey.spec.ts`の修正がまだ
    コミットされていない（本番コードには影響しないテストのみの変更）。pushすれば次回の

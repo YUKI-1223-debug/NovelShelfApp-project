@@ -1,5 +1,11 @@
 # デプロイ手順書 (DEPLOY)
 
+> **⚠️ 2026-08-29: この手順は現行の ConoHa VPS 運用のもの。** 本番は自宅ミニPCへ移設する方針が確定
+> （[DECISIONS.md](DECISIONS.md) 2026-08-29、移設ランブック [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)、
+> ミニPC全体手順 `WorkSpace/ミニPC-Linux移行手順.md`）。移設後のミニPC構成は
+> **Cloudflare Tunnel + 共有 Caddy**（自前 `nginx`/`certbot` は廃止、`docker-compose.minipc.yml` を使用）。
+> このファイルは移設完了後「旧VPS手順（ロールバック用アーカイブ）」として残す。
+
 ConoHa VPS（Ubuntu想定）へのデプロイ手順。**本番環境を変更するコマンドは必ずユーザー自身の手で実行すること**（Claude Codeが直接VPSを操作することはない）。ここに書かれたコマンドはすべてVPS上のSSHセッションで実行する想定。
 
 ## 0. 前提条件

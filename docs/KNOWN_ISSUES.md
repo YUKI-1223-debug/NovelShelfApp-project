@@ -38,6 +38,7 @@
 - レート制限（1話1秒）を維持したまま同期レスポンスで返すため、話数の多い作品（数百話）ではレスポンスに数分かかる。フロントエンド（Phase4）はこの想定でタイムアウト・ローディング表示を設計すること。
 - Phase6でNginxをリバースプロキシとして導入する際、このエンドポイントだけ`proxy_read_timeout`を長めに設定する必要がある（他のAPIと同じ既定値だとタイムアウトする可能性がある）。
 - 話数が非常に多い作品（例: 1000話超）で同期レスポンスが実用的でなくなった場合は、非同期ジョブ化＋進捗確認/SSEへの切り替えを検討する（[DECISIONS.md](DECISIONS.md)参照）。
+- **⚠️ 2026-08-29: ミニPC移設（Cloudflare Tunnel経由）で顕在化する制約**: Cloudflare の Free/Pro/Business プランは**オリジン応答が約100秒を超えると 524 で切断**する（Enterpriseのみ延長可）。→ **90話前後を超える作品でこの同期エンドポイントは 524 になる**。Caddy の `read_timeout` 延長では回避不可（100秒制限は Cloudflare エッジ〜オリジン間）。対応: フロントを **各話 `GET /api/v1/chapters/{chapterId}/content` を順次呼ぶクライアント分割方式**へ改修（[DECISIONS.md](DECISIONS.md) 2026-08-29、[NEXT_TASK.md](NEXT_TASK.md) M1）。移設前に本棚最大作品で実測する（`WorkSpace/ミニPC-Linux移行手順.md` 9-3）。
 
 ## Phase3時点の制限事項
 

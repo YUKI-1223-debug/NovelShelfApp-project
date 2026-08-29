@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-08-29: 本番を ConoHa VPS → 自宅ミニPC へ移設、公開方式を Cloudflare Tunnel + 共有Caddy に変更
+
+**決定**: `novelshelf.jp` の本番を ConoHa VPS（`163.44.116.137`）から自宅ミニPC（GMKtec M5 Ultra / Ryzen 7 7730U / 32GB / 1TB NVMe、Ubuntu Server 24.04 LTS）へ移設する。`Personal_AI_Secretary-project` と同一機に同居させる。外部公開はポート開放ではなく **Cloudflare Tunnel**、リバースプロキシは AI Secretary と共有する **Caddy 1枚**（`/srv/edge/`）に集約し、NovelShelf 自前の `nginx` + `certbot` は廃止する。
+
+**背景・理由**:
+- 自宅回線は au系（KDDI）光で **CGNATではない**が、二重NAT（HGW → 親機ルーター → Wi-Fi中継器）＋動的IPv4。ポート開放だと「ルーターのブリッジ化」「DDNS」「HGWでのポート転送」が必要。Cloudflare Tunnel は**外向き接続のみ**で成立し、これらすべて不要（CGNAT/DS-Lite/MAP-E/二重NATのいずれでも動く）
+- TLS は Cloudflare がエッジで終端 → ミニPCに証明書を置かない（Let's Encrypt / certbot 不要）
+- AI Secretary の設計（`Personal_AI_Secretary-project/docs/deployment.md`）が既に Caddy 採用。静的2サービスの Host 振り分けに Traefik はオーバースペック、Nginx は手書きコスト高 → Caddy に統一
+- ドメインの DNS は Cloudflare へ移管が前提（`cfargotunnel.com` へのプロキシCNAMEは Cloudflare 権威DNSでしか機能しない）。`novelshelf.jp` はムームードメイン登録のまま、ネームサーバーのみ Cloudflare へ
+
+**データ移設**: 永続データは Postgres の `postgres_data` ボリュームに全て入っており（小説本文もファイル保存なし）、`pg_dump -Fc` → リストアで移設できる。利用者は本人のみのため 30分程度のメンテ窓でよい。手順は [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。段階的解約（T0カットオーバー → T+7d でVPSアプリ停止・最終ダンプ → restic 実証後 T+21d で ConoHa 解約、DNSロールバック可能な状態を維持）。
+
+**必要な変更**:
+- `docker/docker-compose.minipc.yml` を新規作成（`nginx`/`certbot` を含まず、外部ネットワーク `edge` に `novelshelf-frontend`/`novelshelf-backend` エイリアスで参加、`ports: !reset []`）。`docker-compose.prod.yml`（VPS用）は当面残置（VPS復帰用）
+- フロントの「全話をオフライン保存」を**クライアント分割方式へ改修**（下記別項）
+- `DEPLOY.md` は移設後に「旧VPS手順（アーカイブ）」へ位置づけ変更、再デプロイ手順をミニPC版へ
+
+**採用しなかった案**: (a) ポート開放 + DDNS → 二重NAT解消と MAP-E 懸念、IP変動対応が増える。(b) 物理ボリュームコピーでの移設 → 速いが `POSTGRES_PASSWORD` 一致必須・破損をそのまま運ぶ・バージョン差に弱いため代替案どまり。(c) NovelShelf を VPS に残す → AI Secretary と別ホストになりリバプロを2枚維持することになる。
+
+---
+
+## 2026-08-29: 全話一括ダウンロード（`/download`）を Cloudflare 100秒制限のためクライアント分割方式へ改修（予定）
+
+**問題**: `POST /api/v1/novels/{novelId}/download`（`NovelController#downloadAll` → `NovelQueryService#getAllChapterContents`）は**完全な同期処理**で、全話をソースサイトから毎回取得し直し、`NarouRateLimiter` が1秒間隔を強制するため 300話で約5分（コード内コメント）。Cloudflare Tunnel 経由になると、Cloudflare の Free/Pro/Business プランは**オリジン応答が約100秒を超えると 524 エラー**で切断する（Enterpriseのみ延長可）。→ 90話前後が境界。なろう長編は数百〜数千話が普通なので、移設後に多くの作品で 524 になる。Caddy の `read_timeout` 延長では回避できない（100秒制限は Cloudflare エッジ〜オリジン間の話）。
+
+**決定**: フロントの `downloadAll()`（`frontend/src/app/(protected)/(shell)/novels/[novelId]/page.tsx`）を、「`POST /novels/{id}/download` 一括」から「`GET /novels/{id}/chapters` で一覧 → 各話 `GET /api/v1/chapters/{chapterId}/content` を順次取得 → `putCachedChapter` → 進捗表示」へ変更する。1リクエストは数秒で完結し 100秒制限に当たらない。合計時間は同じ（サーバー側レートリミッタが律速）だが進捗表示が自然になり中断/再開もしやすい。**バックエンドは既存エンドポイントのみで変更不要**。将来的に `POST /novels/{id}/download` と `getAllChapterContents` は廃止候補。
+
+**移設前に実施**: 本棚の最大話数の作品で現VPSへ直接 `POST /download` を実測（`ミニPC-Linux移行手順.md` 9-3 の T1〜T4）。`>=90s` または長編追加予定なら改修してから移設。
+
+**採用しなかった案**: バックエンドを `application/x-ndjson` ストリーミング応答にする案 → 1リクエストのまま回避できる可能性が高いが、バックエンド＋フロント両方の改修が必要で分割方式より複雑。
+
+---
+
 ## 2026-08-18: Playwright E2Eジョブの失敗原因を修正（テストの陳腐化が2件）
 
 **経緯**: 上記のgradlew権限修正後もCIは通ったが、`e2e-live.yml`の「Playwright E2E」ジョブは

@@ -4,6 +4,15 @@ Claude Codeで対応可能な作業は含めない。ユーザー本人でない
 
 ## 今すぐ必要
 
+0. **本番のミニPC移設（2026-08-29決定。実機到着後）**
+   `https://novelshelf.jp` の本番を ConoHa VPS から自宅ミニPCへ移設します（[DECISIONS.md](DECISIONS.md) 2026-08-29、
+   手順は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)）。ユーザー側の作業一覧は
+   **`WorkSpace/ミニPC移行_ユーザー作業チェックリスト.md`** にまとめてあります。NovelShelf 固有で必要なのは:
+   - **Cloudflare アカウント作成**、`novelshelf.jp` を追加、**ムームードメインでネームサーバーを Cloudflare へ変更**（浸透に最大48h。実機作業と並行で先行着手）。移管前に現行DNSレコード（A/MX/TXT）を控える
+   - **現行VPSの `.env` の中身**（特に `JWT_SECRET`）を控えてミニPC側と揃える（`ssh` して `cat ~/NovelShelfApp-project/.env`）
+   - **「全話をオフライン保存」の所要時間の実測**: 本棚で一番話数の多い作品を1つ選び、実測結果を教えてください（Cloudflare の100秒制限にかかるか判断。方法は `WorkSpace/ミニPC-Linux移行手順.md` 9-3、または Claude が手順を用意します）
+   - 移設当日: `pg_dump` の取得・カットオーバー（Cloudflare でのレコード切替）など**本番に影響するコマンドはユーザーが `!` で実行**（Claude が用意）
+
 1. **（PCのみ）ブラウザ拡張機能の手動インストール・動作確認**
    なろう・カクヨム・ハーメルンの作品ページに「本棚に追加」ボタンを表示するChrome/Edge拡張機能を実装しました（`browser-extension/`ディレクトリ、個人利用専用・非公開）。このサンドボックス環境ではブラウザへの拡張機能インストール自体を自動テストできなかったため、`browser-extension/README.md`の手順（`chrome://extensions`→デベロッパーモード→パッケージ化されていない拡張機能を読み込む）で実際にインストールし、ログイン→なろう/カクヨム/ハーメルンの作品ページでボタンが表示され、押すと本棚に追加されるかを確認してください。AndroidChromeは拡張機能非対応、iOS Safariは別途Xcodeでのラッピングが必要なため未対応です（PC専用）。
 
