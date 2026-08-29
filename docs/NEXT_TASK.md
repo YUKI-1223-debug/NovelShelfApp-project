@@ -49,7 +49,7 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
   `nginx`/`certbot` を含まず、外部ネットワーク `edge` に `novelshelf-frontend`/`novelshelf-backend` エイリアスで参加、
   `ports: !reset []`。YAML雛形は [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の 1-4。
   **`networks:` に `default` を明示すること**（忘れると backend が postgres に繋がらない）。
-- **M1. `/download` のクライアント分割方式への改修** — **2026-08-30 完了**（未コミット）。
+- **M1. `/download` のクライアント分割方式への改修** — **2026-08-30 完了・commit `3e9ecf7`・現行 VPS へデプロイ済み**（4コンテナ healthy / `https://novelshelf.jp` 200 確認）。
   実測: 本棚最大の「暗黒騎士物語」544話で `POST /novels/{id}/download` が **552秒（9分13秒・HTTP 200・9.6MB）**。
   90秒基準を大幅超過（現状 200 で完走するのは Cloudflare がまだ DNSのみ＝グレー雲だから。proxied 化後は 524）。
   → `frontend/src/lib/offline/downloadNovel.ts` を新設。`novelsApi.downloadAll` を廃止し、
