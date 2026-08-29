@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
@@ -18,7 +18,7 @@ import {
   type ShelfStatus,
   type Tag,
 } from "@/lib/api";
-import { putCachedChapter } from "@/lib/offline/chapterCache";
+import { downloadNovelOffline, type DownloadProgress } from "@/lib/offline/downloadNovel";
 
 const STATUS_LABEL: Record<ShelfStatus, string> = {
   READING: "読書中",
@@ -38,6 +38,8 @@ export default function NovelDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const downloadAbortRef = useRef<AbortController | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
@@ -78,6 +80,9 @@ export default function NovelDetailPage() {
       tagsApi.list().then(setAllTags).catch(() => {});
     });
   }, []);
+
+  // 画面を離れたら進行中のオフライン保存を止める（保存済みの話はそのまま残る）
+  useEffect(() => () => downloadAbortRef.current?.abort(), []);
 
   async function addToShelf() {
     const entry = await shelfApi.add(novelId, "READING");
@@ -150,25 +155,30 @@ export default function NovelDetailPage() {
   }
 
   async function downloadAll() {
+    const controller = new AbortController();
+    downloadAbortRef.current = controller;
     setDownloading(true);
     setDownloadMessage(null);
+    setDownloadProgress({ done: 0, total: chapters.length, failed: 0, currentTitle: null });
     try {
-      const contents = await novelsApi.downloadAll(novelId);
-      for (const c of contents) {
-        await putCachedChapter({
-          chapterId: c.chapterId,
-          novelId,
-          chapterNo: c.chapterNo,
-          title: c.title,
-          bodyHtml: c.bodyHtml,
-          sourceUrl: c.sourceUrl,
-        });
+      const result = await downloadNovelOffline(novelId, chapters, setDownloadProgress, {
+        signal: controller.signal,
+      });
+      if (result.aborted) {
+        setDownloadMessage(
+          `中止しました（${result.saved + result.skipped}/${result.total}話を保存済み）。再実行で続きから取得します。`
+        );
+      } else if (result.failed === 0) {
+        setDownloadMessage(`全${result.total}話をこの端末に保存しました。`);
+      } else {
+        setDownloadMessage(`${result.failed}話が保存できませんでした。再実行で未保存分だけ取得します。`);
       }
-      setDownloadMessage(`全${contents.length}話をこの端末に保存しました。`);
     } catch (err) {
       setDownloadMessage(err instanceof ApiError ? err.message : "オフライン保存に失敗しました。");
     } finally {
       setDownloading(false);
+      setDownloadProgress(null);
+      downloadAbortRef.current = null;
     }
   }
 
@@ -321,13 +331,34 @@ export default function NovelDetailPage() {
 
         {chapters.length > 0 && (
           <div className="flex flex-col gap-1">
-            <button
-              onClick={downloadAll}
-              disabled={downloading}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
-            >
-              {downloading ? "取得中...(話数が多いと数分かかります)" : "全話をオフライン保存"}
-            </button>
+            {downloading ? (
+              <div className="flex gap-2">
+                <span className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium text-muted">
+                  {downloadProgress
+                    ? `保存中 ${downloadProgress.done}/${downloadProgress.total}`
+                    : "保存中..."}
+                </span>
+                <button
+                  onClick={() => downloadAbortRef.current?.abort()}
+                  className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted"
+                >
+                  中止
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={downloadAll}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground"
+              >
+                全話をオフライン保存
+              </button>
+            )}
+            {downloading && (
+              <p className="text-xs text-muted">
+                話数が多いと数分かかります。この画面を開いたままにしてください。
+                {downloadProgress?.currentTitle ? `（${downloadProgress.currentTitle}）` : ""}
+              </p>
+            )}
             {downloadMessage && <p className="text-xs text-muted">{downloadMessage}</p>}
           </div>
         )}

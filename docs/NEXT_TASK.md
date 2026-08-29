@@ -49,10 +49,15 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
   `nginx`/`certbot` を含まず、外部ネットワーク `edge` に `novelshelf-frontend`/`novelshelf-backend` エイリアスで参加、
   `ports: !reset []`。YAML雛形は [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の 1-4。
   **`networks:` に `default` を明示すること**（忘れると backend が postgres に繋がらない）。
-- **M1. `/download` のクライアント分割方式への改修**: [DECISIONS.md](DECISIONS.md) 2026-08-29 の項。
-  Cloudflare の 100秒制限(524) 対策。移設前に本棚最大作品で実測（`ミニPC-Linux移行手順.md` 9-3）してから判断。
-  `frontend/src/app/(protected)/(shell)/novels/[novelId]/page.tsx` の `downloadAll()` と
-  `frontend/src/lib/api/endpoints.ts` の `novelsApi.downloadAll` が対象。
+- **M1. `/download` のクライアント分割方式への改修** — **2026-08-30 完了**（未コミット）。
+  実測: 本棚最大の「暗黒騎士物語」544話で `POST /novels/{id}/download` が **552秒（9分13秒・HTTP 200・9.6MB）**。
+  90秒基準を大幅超過（現状 200 で完走するのは Cloudflare がまだ DNSのみ＝グレー雲だから。proxied 化後は 524）。
+  → `frontend/src/lib/offline/downloadNovel.ts` を新設。`novelsApi.downloadAll` を廃止し、
+  `GET /novels/{id}/chapters` → 各話 `GET /chapters/{id}/content` を**逐次1本ずつ**取得して IndexedDB へ。
+  既キャッシュはスキップ（再開）／5xx・ネットワークエラーは 2-4-8秒バックオフ最大3回／401 は中断／
+  進捗「保存中 {done}/{total}」＋「中止」ボタン＋画面離脱で中断。バックエンド改修なし。
+  `page.tsx` の `downloadAll()` を差し替え。tsc/lint/vitest(14件)/`next build` 通過。単体テスト
+  `downloadNovel.test.ts` 追加。**この改修は現行 VPS にデプロイしても安全**（新規に使う API は既存）。
 - **M2. 移設実行**: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の手順どおり。
   本番操作コマンドは Claude が用意 → ユーザーが `!` で実行（[production deploy handoff の方針]）。
 - **M3. 移設後**: `DEPLOY.md` を「旧VPS手順（アーカイブ）」に位置づけ変更＋再デプロイ手順をミニPC版へ。

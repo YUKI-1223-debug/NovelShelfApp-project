@@ -5,7 +5,6 @@ import type {
   BookshelfEntry,
   Chapter,
   ChapterContent,
-  ChapterWithContent,
   Novel,
   NovelDetail,
   OfflineSavePreference,
@@ -41,7 +40,6 @@ export const novelsApi = {
     apiFetch<NovelDetail>(`/novels/${novelId}`, { method: "PATCH", body: { title } }),
   chapters: (novelId: string) => apiFetch<Chapter[]>(`/novels/${novelId}/chapters`),
   content: (chapterId: string) => apiFetch<ChapterContent>(`/chapters/${chapterId}/content`),
-  downloadAll: (novelId: string) => apiFetch<ChapterWithContent[]>(`/novels/${novelId}/download`, { method: "POST" }),
   search: (params: { q?: string; site?: SiteCode; genre?: string; tag?: string }) => {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
