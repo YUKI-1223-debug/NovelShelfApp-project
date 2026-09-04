@@ -12,7 +12,7 @@
 - ディスク暗号化 = LUKS（clevis + TPM2/PCR7 で無人自動解錠。停電→無人完全復旧を実証）。
 - VPS は backend/frontend 停止で cold standby（T+7d 〜09-11頃まで）。**T+21d（〜09-25以降）で ConoHa 解約予定**。
 - 移設の全経過・残タスク（restic B2 オフサイト / 外部死活監視 / VPS解約 ほか）は
-  **`WorkSpace/ミニPC移行_進捗管理.md` が SSOT**。アプリ側の当日手順は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)。
+  **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` が SSOT**。アプリ側の当日手順は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)。
 - 移設前の準備（`docker-compose.minipc.yml` 新設 = commit `b562751` / `/download` クライアント分割方式改修 = commit `3e9ecf7`）は完了済み。
 
 **再デプロイ手順（ミニPC版）**: [DEPLOY.md](DEPLOY.md) 冒頭の「ミニPC版」節を参照。

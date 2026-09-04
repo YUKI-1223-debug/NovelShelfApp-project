@@ -18,7 +18,7 @@
 
 **VPS の扱い**: backend/frontend のみ停止で cold standby（postgres/nginx は稼働＝ロールバック用）。T+7d（〜09-11頃）で最終 `pg_dump` → VPS アプリ `docker compose down`。**T+21d（〜09-25以降）で ConoHa 解約**（条件: 21日間インシデントなし + restic 14日連続グリーン + リストア試験合格）。
 
-**移設後の残タスク・運用**: SSOT は **`WorkSpace/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。主なもの: Backblaze B2 オフサイト、外部死活監視（healthchecks.io / UptimeRobot）、親機ルーターの DHCP 予約、UPS 導入、`/download` 全話保存の実機確認、ドキュメント整理。2本目SSD 増設（P14）は 2026-09-04 に延期（セール時購入・当面1SSD運用、稼働影響なし）。
+**移設後の残タスク・運用**: SSOT は **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。主なもの: Backblaze B2 オフサイト、外部死活監視（healthchecks.io / UptimeRobot）、親機ルーターの DHCP 予約、UPS 導入、`/download` 全話保存の実機確認、ドキュメント整理。2本目SSD 増設（P14）は 2026-09-04 に延期（セール時購入・当面1SSD運用、稼働影響なし）。
 
 **24/7 運用で入れた設定（2026-09-04）**:
 - MT7922 Bluetooth ドライバ（kernel 6.8）の起動時 NULL deref Oops（非致命）対策として **Bluetooth を無効化**（`btusb`/`btmtk` blacklist + `bluetooth.service` mask）。

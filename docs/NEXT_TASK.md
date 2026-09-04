@@ -7,7 +7,7 @@
 自前 `nginx`/`certbot` は廃止。DB は `pg_dump`→`pg_restore` で移設（全12テーブル件数一致・`JWT_SECRET` 据置で再ログイン不要）。
 詳細は [DECISIONS.md](DECISIONS.md) 2026-09-04 / [PROGRESS.md](PROGRESS.md)。
 
-**移設後の残タスク・運用の SSOT は `WorkSpace/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。このリポジトリで扱うのは
+**移設後の残タスク・運用の SSOT は `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。このリポジトリで扱うのは
 コード/デプロイ手順まで。移設インフラの進捗はそちらを見る。
 
 - **再デプロイ（コード更新時）**: [DEPLOY.md](DEPLOY.md) 冒頭「ミニPC版」節。
@@ -19,7 +19,7 @@
 ### 過去セッションの記録（参考）
 
 **2026-08-29セッション**: 本番を **ConoHa VPS → 自宅ミニPC** へ移設する方針が確定（[DECISIONS.md](DECISIONS.md) 2026-08-29 の項）。
-移設ランブック: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。ユーザー作業チェックリストは `WorkSpace/ミニPC移行_ユーザー作業チェックリスト.md`。
+移設ランブック: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。ユーザー作業チェックリストは `WorkSpace/ミニPC移行/ミニPC移行_ユーザー作業チェックリスト.md`。
 
 **2026-08-16セッション**: ユーザー報告2件に対応。コミット(`f047971`)・push・VPS再デプロイは
 **実際には完了していた**ことを2026-08-18セッションで確認（本ドキュメントの「未実施」表記が更新漏れで
@@ -62,7 +62,7 @@
   逐次取得して IndexedDB へ（既キャッシュはスキップ＝再開可 / 5xx は 2-4-8秒バックオフ最大3回 / 401 中断 / 進捗表示 + 中止ボタン）。
   バックエンド改修なし。**残: 実機ブラウザで「全話をオフライン保存」の動作確認**（[USER_TODO.md](USER_TODO.md)）。
 - **M2. 移設実行** — ✅ 2026-09-04 完了。DB 移設・Cloudflare 切替・HSTS・動作確認まで（[DECISIONS.md](DECISIONS.md) 2026-09-04）。
-- **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行_進捗管理.md` の P1〜P14。このリポジトリ側で関係するのは:
+- **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` の P1〜P14。このリポジトリ側で関係するのは:
   - リストア試験（restic から空DBへ復元 → ログインまで。ConoHa 解約の必須条件）
   - `/download` 全話保存の実機確認（上記 M1 の残）
   - T+7d の VPS 最終ダンプ、T+21d の ConoHa 解約

@@ -4,7 +4,7 @@
 
 > **★2026-09-04 実施完了。** カットオーバー成功（当初 09-05 予定を1日前倒し）。`novelshelf.jp` は自宅ミニPCで本番稼働中。
 > この文書は「実施したことの記録」兼「ロールバック時の逆手順の参照元」として残す。移設後の残タスク・
-> 全体進捗の SSOT は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行_進捗管理.md)。
+> 全体進捗の SSOT は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行/ミニPC移行_進捗管理.md)。
 >
 > 実施結果の要点: 論理ダンプ方式（2章）で移設。全12テーブルの件数が VPS と完全一致。`JWT_SECRET` 据置で
 > ユーザーの再ログイン不要。HSTS 有効化・Universal SSL 確認済み。VPS backend/frontend は停止で cold standby。
@@ -14,7 +14,7 @@
 **本番環境を変更するコマンドは必ずユーザー自身の手で実行すること**（Claude Code が直接 VPS・ミニPC・Cloudflare を操作することはない）。この文書のコマンドは「用意されたものをユーザーが実行する」前提。
 
 関連文書:
-- ミニPCのOS・ネットワーク土台: [`../../ミニPC-Linux移行手順.md`](../../ミニPC-Linux移行手順.md)（Cloudflare Tunnel + 共有Caddy の構築は6章）
+- ミニPCのOS・ネットワーク土台: [`../../ミニPC-Linux移行手順.md`](../../ミニPC移行/ミニPC-Linux移行手順.md)（Cloudflare Tunnel + 共有Caddy の構築は6章）
 - 現行VPSのデプロイ手順: [`DEPLOY.md`](DEPLOY.md)
 
 ---
@@ -209,7 +209,7 @@ docker run --rm --network edge curlimages/curl:latest -sS -o /dev/null -w '%{htt
 
 フロントのブラウザ操作（ログイン〜読書）は、バンドルに `https://novelshelf.jp/api/v1` が焼き込まれているため
 **カットオーバー直後**に（2-6 の後、ロールバック手順を準備した状態で）実施する。詳細は
-[`../../ミニPC-Linux移行手順.md`](../../ミニPC-Linux移行手順.md) の 9-2。
+[`../../ミニPC-Linux移行手順.md`](../../ミニPC移行/ミニPC-Linux移行手順.md) の 9-2。
 
 ### 2-6. Cloudflare で `novelshelf.jp` を Tunnel へ切替（ユーザー、ブラウザ作業）
 
@@ -249,7 +249,7 @@ VPS を停止していた間にミニPC側で発生した書き込み（＝メ�
 
 ## 4. 事後処理（ミニPCで数日安定してから）
 
-進捗の詳細・期限は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行_進捗管理.md) §4末尾の P1〜P14 表が正。
+進捗の詳細・期限は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行/ミニPC移行_進捗管理.md) §4末尾の P1〜P14 表が正。
 
 - [x] ミニPC で日次 `pg_dump` を timer 化（`backup.sh` + `backup.timer`、restic、毎日 03:34）— 2026-09-04
 - [x] `docs/DEPLOY.md` を「ミニPC版 + 旧VPS手順（アーカイブ）」に再構成 — 2026-09-04
