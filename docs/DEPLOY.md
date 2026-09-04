@@ -1,10 +1,71 @@
 # デプロイ手順書 (DEPLOY)
 
-> **⚠️ 2026-08-29: この手順は現行の ConoHa VPS 運用のもの。** 本番は自宅ミニPCへ移設する方針が確定
-> （[DECISIONS.md](DECISIONS.md) 2026-08-29、移設ランブック [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)、
-> ミニPC全体手順 `WorkSpace/ミニPC-Linux移行手順.md`）。移設後のミニPC構成は
-> **Cloudflare Tunnel + 共有 Caddy**（自前 `nginx`/`certbot` は廃止、`docker-compose.minipc.yml` を使用）。
-> このファイルは移設完了後「旧VPS手順（ロールバック用アーカイブ）」として残す。
+> **★2026-09-04: 本番は自宅ミニPCへ移設完了。** `https://novelshelf.jp` は Ubuntu Server 24.04 の
+> ミニPC上で、**Cloudflare Tunnel + 共有 Caddy**（`/srv/edge/`）経由で稼働中。自前 `nginx`/`certbot` は廃止し
+> `docker/docker-compose.minipc.yml` を使う。**現行の再デプロイ手順は下記「ミニPC版」を見る。**
+> このファイル後半の「旧VPS手順（アーカイブ）」は ConoHa VPS 運用時のもので、T+21d までのロールバック用に残置。
+
+---
+
+## ミニPC版（現行本番・2026-09-04〜）
+
+**本番環境を変更するコマンドは Claude が用意 → ユーザーが実行**（[production deploy handoff の方針]）。
+
+### 構成
+
+| 項目 | 内容 |
+|---|---|
+| ホスト | 自宅ミニPC（GMKtec M5 Ultra / Ubuntu Server 24.04 / LUKS 暗号化 + TPM2 自動解錠） |
+| 配置 | `/srv/NovelShelfApp-project`（`git clone`）。`.env` は `/srv/NovelShelfApp-project/.env`（chmod 600） |
+| 公開 | Cloudflare Tunnel（`/srv/edge/` の `cloudflared`）→ 共有 Caddy（`/srv/edge/Caddyfile` の `@novelshelf` ブロック）→ `novelshelf-backend:8080` / `novelshelf-frontend:3000` |
+| compose | `docker-compose.yml` + `docker-compose.minipc.yml`（`nginx`/`certbot` なし、`ports: !reset []`、`edge` 網に相乗り） |
+| TLS | Cloudflare がエッジで終端。ミニPCに証明書は無い |
+| SSH | `ssh -i ~/.ssh/minipc_key friday@192.168.11.50`（LAN内・鍵のみ）。`friday` は NOPASSWD sudo |
+| バックアップ | `/usr/local/sbin/backup.sh` + `backup.timer`（毎日 03:34）。restic。**オフサイト（B2）は設定作業中** |
+| 監視 | `minipc-health.timer`（15分間隔、`/var/log/minipc-health.log`） |
+
+### 再デプロイ（コード更新時）
+
+```bash
+# ミニPC上（ssh -i ~/.ssh/minipc_key friday@192.168.11.50）
+cd /srv/NovelShelfApp-project
+git pull
+cd docker
+docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml up -d --build
+docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml ps   # backend/frontend が healthy になるまで
+```
+
+> **重要**: 必ず `docker/` ディレクトリに移動し `--env-file ../.env` を明示する（相対パス指定だと `.env` を
+> `docker/` 内で探して見失い、DBパスワードが既定値にフォールバックして起動失敗する既知の罠。[NEXT_TASK.md](NEXT_TASK.md) 注意事項）。
+
+### 起動確認
+
+```bash
+# ミニPC。外部に publish していないので edge 網の使い捨てコンテナで本番経路を再現
+docker run --rm --network edge curlimages/curl:latest -sS -o /dev/null -w '%{http_code}\n' -H 'Host: novelshelf.jp' http://caddy/       # 200
+docker run --rm --network edge curlimages/curl:latest -sS -o /dev/null -w '%{http_code}\n' -H 'Host: novelshelf.jp' http://caddy/api/v1/sites  # 401
+# 外部から
+curl -I https://novelshelf.jp/          # 200
+```
+
+### ログ / トラブルシューティング
+
+```bash
+cd /srv/NovelShelfApp-project/docker
+docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml logs <service>
+docker compose -f /srv/edge/docker-compose.yml logs cloudflared   # Tunnel 側
+```
+
+- 502/503: `docker compose ps` で backend/frontend が healthy か。Caddy が `novelshelf-backend`/`novelshelf-frontend` を名前解決できているか（`edge` 網エイリアス）。
+- Cloudflare "Error 1033 / tunnel not found": `cloudflared` のログ。`/srv/edge/.env` のトークン or Public Hostname 設定。
+- 大きいレスポンスで固まる: 二重NAT + IPoE の経路MTU。`cloudflared` を `--protocol http2` に。詳細は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md) トラブルシューティング。
+
+---
+
+## 旧VPS手順（アーカイブ・ロールバック用）
+
+> 以下は ConoHa VPS（`163.44.116.137`）運用時の手順。2026-09-04 のカットオーバーで backend/frontend は停止済み
+> （postgres/nginx は T+7d まで稼働＝ロールバック用）。T+21d の ConoHa 解約でこの節は完全に用済みになる。
 
 ConoHa VPS（Ubuntu想定）へのデプロイ手順。**本番環境を変更するコマンドは必ずユーザー自身の手で実行すること**（Claude Codeが直接VPSを操作することはない）。ここに書かれたコマンドはすべてVPS上のSSHセッションで実行する想定。
 

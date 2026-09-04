@@ -1,17 +1,27 @@
 # 進捗記録 (PROGRESS)
 
-最終更新: 2026-08-29
+最終更新: 2026-09-04
 
 ## 現在の進捗
 
-**Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中（ConoHa VPS `163.44.116.137`）。**
+**★2026-09-04: ConoHa VPS → 自宅ミニPC への移設カットオーバー完了。`https://novelshelf.jp` は自宅ミニPC（Ubuntu Server 24.04 / GMKtec M5 Ultra）で本番稼働中。2026-09-04 夜より 24/7 常時稼働運用。**
 
-**2026-08-29: 本番を ConoHa VPS → 自宅ミニPC へ移設する方針が確定**（[DECISIONS.md](DECISIONS.md) 2026-08-29、
-移設ランブック [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)、次にやること [NEXT_TASK.md](NEXT_TASK.md) の M0〜M3）。
-公開方式は Cloudflare Tunnel + `Personal_AI_Secretary-project` と共有の Caddy。自前 `nginx`/`certbot` は廃止。
-DBは `pg_dump` → リストアで移設（全データが `postgres_data` ボリューム内）。ミニPC全体のセットアップは
-`WorkSpace/ミニPC-Linux移行手順.md`。実機は 2026-08-30 頃到着予定、着手前に `docker-compose.minipc.yml` 作成と
-`/download` のクライアント分割方式改修（Cloudflare 100秒制限対策）が必要。
+- 公開方式 = Cloudflare Tunnel + `Personal_AI_Secretary-project` と共有の Caddy（`/srv/edge/`）。自前 `nginx`/`certbot` は廃止。
+- DB は `pg_dump -Fc` → `pg_restore` で移設。全12テーブルの件数が VPS と完全一致。`JWT_SECRET` を VPS と揃えたためユーザーの再ログイン不要。
+- HSTS 有効化・Cloudflare Universal SSL 有効を確認。既存アカウントでログイン→本棚→読書位置まで動作確認済み。
+- ディスク暗号化 = LUKS（clevis + TPM2/PCR7 で無人自動解錠。停電→無人完全復旧を実証）。
+- VPS は backend/frontend 停止で cold standby（T+7d 〜09-11頃まで）。**T+21d（〜09-25以降）で ConoHa 解約予定**。
+- 移設の全経過・残タスク（restic B2 オフサイト / 外部死活監視 / VPS解約 ほか）は
+  **`WorkSpace/ミニPC移行_進捗管理.md` が SSOT**。アプリ側の当日手順は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)。
+- 移設前の準備（`docker-compose.minipc.yml` 新設 = commit `b562751` / `/download` クライアント分割方式改修 = commit `3e9ecf7`）は完了済み。
+
+**再デプロイ手順（ミニPC版）**: [DEPLOY.md](DEPLOY.md) 冒頭の「ミニPC版」節を参照。
+`git pull` → `docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml up -d --build`。
+
+---
+
+**（以下、2026-08-29 の移設方針決定時の記録）本番を ConoHa VPS → 自宅ミニPC へ移設する方針が確定**（[DECISIONS.md](DECISIONS.md) 2026-08-29）。
+公開方式は Cloudflare Tunnel + 共有 Caddy。自前 `nginx`/`certbot` は廃止。DBは `pg_dump` → リストアで移設。
 
 ---
 

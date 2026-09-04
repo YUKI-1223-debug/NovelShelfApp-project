@@ -2,13 +2,24 @@
 
 ## 状況
 
-Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番稼働中（現時点は ConoHa VPS `163.44.116.137`）。
+**★2026-09-04: ミニPC移設カットオーバー完了。** `https://novelshelf.jp` は自宅ミニPC（Ubuntu Server 24.04 / GMKtec M5 Ultra）で
+本番稼働中。2026-09-04 夜より 24/7 常時稼働。公開方式 = Cloudflare Tunnel + AI Secretary と共有の Caddy（`/srv/edge/`）。
+自前 `nginx`/`certbot` は廃止。DB は `pg_dump`→`pg_restore` で移設（全12テーブル件数一致・`JWT_SECRET` 据置で再ログイン不要）。
+詳細は [DECISIONS.md](DECISIONS.md) 2026-09-04 / [PROGRESS.md](PROGRESS.md)。
+
+**移設後の残タスク・運用の SSOT は `WorkSpace/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。このリポジトリで扱うのは
+コード/デプロイ手順まで。移設インフラの進捗はそちらを見る。
+
+- **再デプロイ（コード更新時）**: [DEPLOY.md](DEPLOY.md) 冒頭「ミニPC版」節。
+  ミニPCで `cd /srv/NovelShelfApp-project && git pull && cd docker && docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml up -d --build`。
+  本番影響コマンドは Claude が用意 → ユーザーが実行（[production deploy handoff の方針]）。
+- **VPS**: backend/frontend 停止で cold standby。T+7d（〜09-11頃）で最終 `pg_dump`→`down`、T+21d（〜09-25以降）で ConoHa 解約。
+- 旧 VPS 運用（`163.44.116.137` / `nginx`+`certbot` / `docker-compose.prod.yml`）はロールバック用に温存。手順は [DEPLOY.md](DEPLOY.md) の「旧VPS手順（アーカイブ）」節。
+
+### 過去セッションの記録（参考）
 
 **2026-08-29セッション**: 本番を **ConoHa VPS → 自宅ミニPC** へ移設する方針が確定（[DECISIONS.md](DECISIONS.md) 2026-08-29 の項）。
-公開方式は Cloudflare Tunnel + AI Secretary と共有の Caddy。自前 `nginx`/`certbot` は廃止。
-移設ランブック: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。ミニPC全体のセットアップ手順は
-`WorkSpace/ミニPC-Linux移行手順.md`、ユーザー作業チェックリストは `WorkSpace/ミニPC移行_ユーザー作業チェックリスト.md`。
-ミニPC実機は 2026-08-30 頃到着予定。**移設着手前に下記「次に行うこと」の0〜2を済ませること。**
+移設ランブック: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md)。ユーザー作業チェックリストは `WorkSpace/ミニPC移行_ユーザー作業チェックリスト.md`。
 
 **2026-08-16セッション**: ユーザー報告2件に対応。コミット(`f047971`)・push・VPS再デプロイは
 **実際には完了していた**ことを2026-08-18セッションで確認（本ドキュメントの「未実施」表記が更新漏れで
@@ -43,25 +54,19 @@ Phase1〜Phase6（初回デプロイ）完了。`https://novelshelf.jp`で本番
 
 ## 次に行うこと（優先順位順）
 
-### ミニPC移設まわり（最優先。実機到着後に着手）
+### ミニPC移設まわり — カットオーバー完了（2026-09-04）
 
-- **M0. `docker/docker-compose.minipc.yml` の作成・コミット**: VPS用 `docker-compose.prod.yml` に相当するミニPC版。
-  `nginx`/`certbot` を含まず、外部ネットワーク `edge` に `novelshelf-frontend`/`novelshelf-backend` エイリアスで参加、
-  `ports: !reset []`。YAML雛形は [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の 1-4。
-  **`networks:` に `default` を明示すること**（忘れると backend が postgres に繋がらない）。
-- **M1. `/download` のクライアント分割方式への改修** — **2026-08-30 完了・commit `3e9ecf7`・現行 VPS へデプロイ済み**（4コンテナ healthy / `https://novelshelf.jp` 200 確認）。
-  実測: 本棚最大の「暗黒騎士物語」544話で `POST /novels/{id}/download` が **552秒（9分13秒・HTTP 200・9.6MB）**。
-  90秒基準を大幅超過（現状 200 で完走するのは Cloudflare がまだ DNSのみ＝グレー雲だから。proxied 化後は 524）。
-  → `frontend/src/lib/offline/downloadNovel.ts` を新設。`novelsApi.downloadAll` を廃止し、
-  `GET /novels/{id}/chapters` → 各話 `GET /chapters/{id}/content` を**逐次1本ずつ**取得して IndexedDB へ。
-  既キャッシュはスキップ（再開）／5xx・ネットワークエラーは 2-4-8秒バックオフ最大3回／401 は中断／
-  進捗「保存中 {done}/{total}」＋「中止」ボタン＋画面離脱で中断。バックエンド改修なし。
-  `page.tsx` の `downloadAll()` を差し替え。tsc/lint/vitest(14件)/`next build` 通過。単体テスト
-  `downloadNovel.test.ts` 追加。**この改修は現行 VPS にデプロイしても安全**（新規に使う API は既存）。
-- **M2. 移設実行**: [`MIGRATION_to_minipc.md`](MIGRATION_to_minipc.md) の手順どおり。
-  本番操作コマンドは Claude が用意 → ユーザーが `!` で実行（[production deploy handoff の方針]）。
-- **M3. 移設後**: `DEPLOY.md` を「旧VPS手順（アーカイブ）」に位置づけ変更＋再デプロイ手順をミニPC版へ。
-  restic バックアップ cron 化・リストア試験（`ミニPC-Linux移行手順.md` 13章）。T+21d で ConoHa 解約。
+- **M0. `docker/docker-compose.minipc.yml` 作成** — ✅ 完了（commit `b562751`）。
+- **M1. `/download` のクライアント分割方式への改修** — ✅ 完了（commit `3e9ecf7`）。
+  `frontend/src/lib/offline/downloadNovel.ts` を新設し `GET /novels/{id}/chapters` → 各話 `GET /chapters/{id}/content` を
+  逐次取得して IndexedDB へ（既キャッシュはスキップ＝再開可 / 5xx は 2-4-8秒バックオフ最大3回 / 401 中断 / 進捗表示 + 中止ボタン）。
+  バックエンド改修なし。**残: 実機ブラウザで「全話をオフライン保存」の動作確認**（[USER_TODO.md](USER_TODO.md)）。
+- **M2. 移設実行** — ✅ 2026-09-04 完了。DB 移設・Cloudflare 切替・HSTS・動作確認まで（[DECISIONS.md](DECISIONS.md) 2026-09-04）。
+- **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行_進捗管理.md` の P1〜P14。このリポジトリ側で関係するのは:
+  - リストア試験（restic から空DBへ復元 → ログインまで。ConoHa 解約の必須条件）
+  - `/download` 全話保存の実機確認（上記 M1 の残）
+  - T+7d の VPS 最終ダンプ、T+21d の ConoHa 解約
+  - `docker/nginx/`・`certbot`・`docker-compose.prod.yml` の最終的な扱い（当面は VPS 復帰用に残置）
 
 ### 既存タスク
 

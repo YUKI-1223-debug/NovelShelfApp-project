@@ -1,6 +1,13 @@
 # NovelShelf 移設手順書: ConoHa VPS → 自宅ミニPC（DBデータ保持）
 
-作成日: 2026-08-29
+作成日: 2026-08-29 / 更新: 2026-09-04
+
+> **★2026-09-04 実施完了。** カットオーバー成功（当初 09-05 予定を1日前倒し）。`novelshelf.jp` は自宅ミニPCで本番稼働中。
+> この文書は「実施したことの記録」兼「ロールバック時の逆手順の参照元」として残す。移設後の残タスク・
+> 全体進捗の SSOT は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行_進捗管理.md)。
+>
+> 実施結果の要点: 論理ダンプ方式（2章）で移設。全12テーブルの件数が VPS と完全一致。`JWT_SECRET` 据置で
+> ユーザーの再ログイン不要。HSTS 有効化・Universal SSL 確認済み。VPS backend/frontend は停止で cold standby。
 
 `https://novelshelf.jp` を、現行の ConoHa VPS（`163.44.116.137`）から自宅ミニPC（GMKtec Ryzen 7 7730U / Ubuntu Server）へ、**DBデータを保持したまま**移設する手順。
 
@@ -242,12 +249,16 @@ VPS を停止していた間にミニPC側で発生した書き込み（＝メ�
 
 ## 4. 事後処理（ミニPCで数日安定してから）
 
-- [ ] VPS の証明書更新 cron（`crontab -e`）を削除
-- [ ] ConoHa VPS を解約
-- [ ] ミニPC で Postgres の**日次 `pg_dump` を cron 化**し、別クラウド（Cloudflare R2 / Backblaze B2 / rclone 経由 Google Drive 等）へオフサイト保存（移行手順書の未解決事項）
-- [ ] `docs/DEPLOY.md` の位置づけを「旧VPS手順（アーカイブ）」に変更、再デプロイ手順をミニPC版（`git pull` → `docker compose -f docker-compose.yml -f docker-compose.minipc.yml up -d --build`）に更新
-- [ ] `docs/NEXT_TASK.md` / `docs/DECISIONS.md` に移設完了を記録
-- [ ] `docker/nginx/`・`certbot` サービス・`docker-compose.prod.yml` の扱いを決める（当面は残置でよい。VPS復帰用）
+進捗の詳細・期限は [`../../ミニPC移行_進捗管理.md`](../../ミニPC移行_進捗管理.md) §4末尾の P1〜P14 表が正。
+
+- [x] ミニPC で日次 `pg_dump` を timer 化（`backup.sh` + `backup.timer`、restic、毎日 03:34）— 2026-09-04
+- [x] `docs/DEPLOY.md` を「ミニPC版 + 旧VPS手順（アーカイブ）」に再構成 — 2026-09-04
+- [x] `docs/NEXT_TASK.md` / `docs/DECISIONS.md` / `docs/PROGRESS.md` / `docs/USER_TODO.md` に移設完了を記録 — 2026-09-04
+- [ ] restic のオフサイト保存先（Backblaze B2）を設定（P3。**最優先の残タスク**）
+- [ ] リストア試験（空DBへ復元 → ログインまで。ConoHa 解約の必須条件、P5）
+- [ ] **T+7d（〜09-11頃）**: VPS で最終 `pg_dump` → オフサイト退避 → VPS アプリ `docker compose down`（cold standby 化）
+- [ ] **T+21d（〜09-25以降）**: VPS の証明書更新 cron 削除 → ConoHa「イメージ保存」→ ConoHa VPS を解約（付録D-3 全項目クリアが条件）
+- [ ] `docker/nginx/`・`certbot` サービス・`docker-compose.prod.yml` の扱いを決める（ConoHa 解約までは VPS 復帰用に残置）
 
 ---
 

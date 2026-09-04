@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-04: ミニPC移設カットオーバー完了、本番を自宅ミニPCへ切替
+
+**結果**: 2026-08-29 に決定した ConoHa VPS → 自宅ミニPC の移設を実行。**2026-09-04 夜（当初 09-05 予定を1日前倒し）にカットオーバー完了**。`https://novelshelf.jp` は自宅ミニPC（GMKtec M5 Ultra / Ubuntu Server 24.04 LTS）で本番稼働、Cloudflare Tunnel + 共有 Caddy 経由。同日夜より 24/7 常時稼働運用へ移行。
+
+**実施内容**:
+- ミニPC OS 土台（Ubuntu Server 24.04 + LUKS 全ディスク暗号化 + clevis/TPM2 無人自動解錠 + UFW + Docker + `/srv/edge` の共有 Caddy/cloudflared）を構築。停電→無人完全復旧（LUKS解錠→コンテナ起動→Tunnel再接続）を実証。
+- `docker/docker-compose.minipc.yml`（`nginx`/`certbot` を含まず `edge` 網に相乗り、`ports: !reset []`）で NovelShelf スタックを起動。
+- DB 移設: VPS で `pg_dump -Fc --no-owner` → 転送 → ミニPCで `pg_restore --no-owner --no-privileges --exit-on-error` → `ANALYZE`。**全12テーブルの件数が VPS と完全一致**（users 1 / novels 91 / chapters 2691 / bookshelf_entries 89 / reading_history 1130 ほか）。
+- `.env`: `JWT_SECRET` を VPS と**同一**にしたため全ユーザーのセッション維持（再ログイン不要を実証）。`POSTGRES_PASSWORD` は論理ダンプ方式のため新規乱数。
+- Cloudflare: `novelshelf.jp` の A レコード（→VPS）を削除し、Zero Trust の「公開アプリケーションルート」で `novelshelf.jp` → `HTTP` → `caddy:80` を追加（CNAME →`<uuid>.cfargotunnel.com` プロキシON が自動生成）。HSTS 有効化（`max-age=31536000; includeSubDomains`、preload なし）。`www.novelshelf.jp` は A レコード削除（アプリ非対応のため）。
+- restic バックアップ（`pg_dump` + `.env` を age 暗号化 + `/srv/edge` を同梱 → restic）のローカルリポジトリを構築。**オフサイト（Backblaze B2）は未設定＝残タスク**。
+
+**VPS の扱い**: backend/frontend のみ停止で cold standby（postgres/nginx は稼働＝ロールバック用）。T+7d（〜09-11頃）で最終 `pg_dump` → VPS アプリ `docker compose down`。**T+21d（〜09-25以降）で ConoHa 解約**（条件: 21日間インシデントなし + restic 14日連続グリーン + リストア試験合格）。
+
+**移設後の残タスク・運用**: SSOT は **`WorkSpace/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。主なもの: Backblaze B2 オフサイト、外部死活監視（healthchecks.io / UptimeRobot）、親機ルーターの DHCP 予約、UPS 導入、`/download` 全話保存の実機確認、ドキュメント整理。2本目SSD 増設（P14）は 2026-09-04 に延期（セール時購入・当面1SSD運用、稼働影響なし）。
+
+**24/7 運用で入れた設定（2026-09-04）**:
+- MT7922 Bluetooth ドライバ（kernel 6.8）の起動時 NULL deref Oops（非致命）対策として **Bluetooth を無効化**（`btusb`/`btmtk` blacklist + `bluetooth.service` mask）。
+- `unattended-upgrades` を **無人自動再起動 04:00** に設定（TPM2 自動解錠が動くため無人カーネル更新が可能）。
+- `smartmontools` 導入（ノーブランド NVMe の寿命監視。導入時 Percentage Used 0% / PASSED）。
+- 軽量ヘルスチェック（`/usr/local/sbin/minipc-healthcheck.sh` + systemd timer 15分間隔。コンテナ health / サイト応答 / ディスク / restic 鮮度、失敗→復旧遷移時に Discord 通知）。
+
+---
+
 ## 2026-08-29: 本番を ConoHa VPS → 自宅ミニPC へ移設、公開方式を Cloudflare Tunnel + 共有Caddy に変更
 
 **決定**: `novelshelf.jp` の本番を ConoHa VPS（`163.44.116.137`）から自宅ミニPC（GMKtec M5 Ultra / Ryzen 7 7730U / 32GB / 1TB NVMe、Ubuntu Server 24.04 LTS）へ移設する。`Personal_AI_Secretary-project` と同一機に同居させる。外部公開はポート開放ではなく **Cloudflare Tunnel**、リバースプロキシは AI Secretary と共有する **Caddy 1枚**（`/srv/edge/`）に集約し、NovelShelf 自前の `nginx` + `certbot` は廃止する。
