@@ -1,0 +1,53 @@
+# Codemagic: iOS アプリ（Capacitor）をクラウド Mac でビルドして TestFlight へ配布する。
+# 前提（Codemagic UI 側の設定。詳細は docs/IOS_SETUP.md）:
+#   - App Store Connect API キーを Team integration として登録（名前: "novelshelf-appstore"）
+#   - 環境変数グループ "novelshelf_ios" に APP_STORE_APP_ID（数値のアプリ ID）を設定
+#   - 署名は自動（app-store-connect fetch-signing-files で証明書・プロファイルを取得/作成）
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: novelshelf-appstore
+    environment:
+      groups:
+        - novelshelf_ios
+      vars:
+        BUNDLE_ID: "jp.novelshelf.app"
+        XCODE_PROJECT: "frontend/ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+    scripts:
+      - name: npm install
+        script: cd frontend && npm ci
+      - name: Web ビルド（静的エクスポート）
+        script: cd frontend && npm run build:app
+      - name: Capacitor sync（iOS へ web アセット反映）
+        script: cd frontend && npx cap sync ios
+      - name: 署名ファイルの取得
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: ビルド番号のインクリメント
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0)
+          cd frontend/ios/App
+          agvtool new-version -all $((LATEST + 1))
+      - name: IPA ビルド
+        script: |
+          cd frontend/ios/App
+          xcode-project build-ipa --project "App.xcodeproj" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - frontend/ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - "自分用"

@@ -14,6 +14,10 @@ const LAST_TOKEN_KEY = "novelshelf.pushToken";
 // android/app/ に配置してビルドするときだけ NEXT_PUBLIC_PUSH_ENABLED=true にする。
 const PUSH_ENABLED = process.env.NEXT_PUBLIC_PUSH_ENABLED === "true";
 
+// iOS は Firebase Messaging SDK / APNs 鍵 / GoogleService-Info.plist の整備が未完のため当面 Android のみ。
+// （iOS の @capacitor/push-notifications は APNs トークンを返すが、バックエンドは FCM トークンを期待する）
+const PUSH_PLATFORMS = new Set(["android"]);
+
 // ネイティブアプリ（Capacitor）でのプッシュ通知のセットアップ。Web では何もしない。
 // - ログイン中: 権限リクエスト → FCM トークン取得 → サーバーへ登録
 // - ログアウト時: 登録済みトークンをサーバーから解除
@@ -26,6 +30,7 @@ export function PushNotifications() {
 
   useEffect(() => {
     if (!PUSH_ENABLED || !Capacitor.isNativePlatform() || !isReady) return;
+    if (!PUSH_PLATFORMS.has(Capacitor.getPlatform())) return;
     let cancelled = false;
 
     (async () => {
