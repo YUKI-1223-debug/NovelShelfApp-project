@@ -34,7 +34,47 @@
   3. Codemagic → iOS provisioning profiles → **Fetch profiles** で取り込み
      （reference name `novelshelf_appstore`）。
 - **Team ID**: `28Q7PP2X98`。Identifier `jp.novelshelf.app` は Apple 側に登録済みだった。
-- ビルド#4 実行中（署名整備後の初通過を狙う）。結果は次セッションで追記。
+- **ビルド#4 失敗**: `--export-options-plist: /Users/builder/export_options.plist does not exist`。
+  ios_signing は証明書/プロファイルを配置するが ExportOptions.plist を生成しない。
+  → `xcode-project use-profiles` を cap sync 後の明示ステップに追加（commit `ebb82cf`）。
+- **ビルド#5 相当 失敗**: `"App" requires a provisioning profile`（use-profiles 追加前の再実行）。
+- **ビルド#6 成功**: IPA（1.44MB）を App Store Connect にアップロード。ただし Post-processing
+  （ベータグループ自動配信）が失敗 = ①`自分用` グループ未作成 ②輸出コンプライアンス未回答。
+  - App Store Connect でビルドのコンプライアンスに手動回答（暗号化アルゴリズム=「どれでもない」
+    ＝OS標準のHTTPSのみ、免除対象）。
+  - `Info.plist` に `ITSAppUsesNonExemptEncryption=false` を追加（commit `3d94680`、次回から自動）。
+  - 内部テストグループ `自分用`（自動配信ON）を作成、ユーザーをテスターに追加。
+  - ユーザーが iPhone の TestFlight でインストール・起動成功。
+- **秘密ファイルの誤コミット事故（2026-09-06）**: `git add -A` により配布証明書
+  `_novelshelf_dist.p12`（秘密鍵入り）・`NovelShelf_App_Store.mobileprovision`・URL.txt・
+  スクショが commit `b5d7562` として public リポジトリに push された。約3分後に気付き、
+  `git reset --soft HEAD~1` → コード分のみ再コミット（`b30f765`）→ `git push --force` で履歴から除去。
+  3ファイルは `WorkSpace/NovelShelf-secrets/` へ退避。`.gitignore` に `*.p12` / `*.mobileprovision` /
+  ローカルメモを追加。**ユーザー判断で証明書は失効せず継続使用**（作成当日・露出3分・低リスク）。
+  GitHub 側の GC 前のSHA直参照/キャッシュ残存の可能性は残る。
+
+## モバイルアプリ化 iOS: 実機フィードバック対応（2026-09-06〜07）
+
+TestFlight ビルド（`ebb82cf`）を Xperia でなく **iPhone 実機**で確認したユーザーからの指摘2件＋
+セーフエリア問題に対応。次回 iOS ビルドで反映。
+
+- **セーフエリア未対応**（commit `b30f765`）: 横向き表示で「本棚」見出し・＋ボタン・検索アイコンが
+  ノッチ/ステータスバー（横向き時は左端）に食い込む。`viewport` に `viewportFit: "cover"` を追加し
+  `env(safe-area-inset-*)` を有効化。`globals.css` に `.safe-pt` / `.safe-pb` / `.safe-px`
+  ユーティリティ（env() が 0 の環境では無害）。shell の `<main>`・`BottomNav`・読書画面の
+  ヘッダー/フッター/本文・認証レイアウト・共有画面に適用。
+- **外部サイトリンクがアプリ内で開く**（commit `4b12943`）: 作品追加ダイアログの検索リンク等が
+  Capacitor WebView 内で開き毎回戻る必要がある。原因は PWA 用の `x-safari-https://` 書き換えが
+  Capacitor 上で機能しないこと。`src/lib/utils/externalLink.ts` に `externalLinkProps()` を新設し、
+  `Capacitor.isNativePlatform()` のときは素の `target="_blank"` を返す
+  （Capacitor ネイティブ層が iOS=`UIApplication.open` / Android=`Intent.ACTION_VIEW` で
+  外部ブラウザの新規タブに開く。node_modules の `WebViewDelegationHandler.swift` / `Bridge.java` で確認）。
+  作品追加ダイアログ・本棚の外部リンク・作品詳細「外部サイトで読む」に適用。
+- **読書画面ヘッダーの誤タップ**（commit `4b12943`）: 「話一覧」と「Aa」が近く誤タップ。
+  `Aa` は既にフェーズ0で反対端へ単独配置済みだったが、「戻る」「話一覧」「♥」「Aa」の
+  各タップ領域を padding で拡大。
+- **未確認（要ユーザー、次ビルド後）**: セーフエリアの実機確認（縦/横）、外部ブラウザ起動、
+  読書画面の誤タップ改善、iOS の縦書き/ページ送り/戻る。
 
 ## モバイルアプリ化 体感速度改善 + iOS 着手（2026-09-06）
 
