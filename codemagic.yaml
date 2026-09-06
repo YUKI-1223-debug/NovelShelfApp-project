@@ -1,7 +1,10 @@
 # Codemagic: iOS アプリ（Capacitor）をクラウド Mac でビルドして TestFlight へ配布する。
 # 前提（Codemagic UI 側の設定。詳細は docs/IOS_SETUP.md）:
 #   - App Store Connect API キーを Team integration として登録（名前: "novelshelf-appstore"）
-#   - 署名は自動（app-store-connect fetch-signing-files で証明書・プロファイルを取得/作成）
+#   - 署名は Codemagic の自動コード署名（environment.ios_signing）に委任。
+#     Codemagic が証明書の秘密鍵を生成・チームに保存し、証明書/プロファイルの
+#     取得・作成・use-profiles までビルド前に自動実行する。
+#     （手動 fetch-signing-files --create は Apple から秘密鍵を取得できず失敗するため不可）
 workflows:
   ios-testflight:
     name: iOS → TestFlight
@@ -10,10 +13,11 @@ workflows:
     integrations:
       app_store_connect: novelshelf-appstore
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: jp.novelshelf.app
       vars:
-        BUNDLE_ID: "jp.novelshelf.app"
         APP_STORE_APP_ID: "6809167553"
-        XCODE_PROJECT: "frontend/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
       node: 22
       xcode: latest
@@ -24,13 +28,6 @@ workflows:
         script: cd frontend && npm run build:app
       - name: Capacitor sync（iOS へ web アセット反映）
         script: cd frontend && npx cap sync ios
-      - name: 署名ファイルの取得
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE --create
-          keychain add-certificates
-          xcode-project use-profiles
       - name: ビルド番号のインクリメント
         script: |
           LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0)
