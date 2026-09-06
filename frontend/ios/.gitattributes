@@ -1,0 +1,7 @@
+# Xcode / Swift プロジェクト。Windows で生成しても macOS / Codemagic のチェックアウトで
+# 壊れないよう改行を LF に固定する。
+* text=auto eol=lf
+*.pbxproj text eol=lf merge=union
+*.png binary
+*.jpg binary
+*.xcassets/** -text
