@@ -2,6 +2,40 @@
 
 最終更新: 2026-09-06
 
+## モバイルアプリ化 iOS: Codemagic 初回ビルド・署名整備（2026-09-06）
+
+ユーザーが Codemagic UI 設定 → 初回ビルドを実行。詰まった箇所と対処を記録:
+
+- **GitHub App**: Codemagic の "Install GitHub App" が無反応 → GitHub 側
+  （`github.com/settings/installations`）で Codemagic CI/CD のリポジトリアクセスに
+  `NovelShelfApp-project` を追加して解消。
+- **App Store Connect API キー**: 既存キー（name `codemagic` / Key ID `TL4KRXDVV3` /
+  Issuer `6ba00ea2-c326-498e-8dd6-e9cbf2a70fd4` / App Manager）を Codemagic の
+  Team → Integrations → Developer Portal に **`novelshelf-appstore`** の名前で登録
+  （`codemagic.yaml` の `integrations.app_store_connect` と一致必須）。
+- **ビルド#1 失敗**: `The Capacitor CLI requires NodeJS >=22.0.0`。
+  → `codemagic.yaml` の `node: 20` → `22`（commit `7a8104d`）。
+- **ビルド#2 失敗**: `"App" requires a provisioning profile`。原因は手動
+  `app-store-connect fetch-signing-files --create` が **Apple から証明書の秘密鍵を
+  取得できない**（`Cannot save Signing Certificates without certificate private key`）
+  ため署名証明書0個 → プロファイル未適用。
+  → `codemagic.yaml` を **`environment.ios_signing`（distribution_type: app_store /
+  bundle_identifier: jp.novelshelf.app）による自動コード署名**へ切替、手動署名スクリプト削除
+  （commit `fc1a981`）。
+- **ビルド#3 失敗**: `No matching profiles found for bundle identifier
+  "jp.novelshelf.app" and distribution type "app_store"`。自動署名は証明書は作るが
+  **プロファイルの新規作成まではしない**。対処:
+  1. Codemagic UI（Settings → Code signing identities → iOS certificates →
+     **Generate certificate**、API key `novelshelf-appstore` / Apple Distribution）で
+     **秘密鍵付き配布証明書 `novelshelf-dist`** を生成（有効期限 2027-09-06）。
+  2. Apple Developer Portal（`developer.apple.com/account/resources/profiles/list`）で
+     **App Store プロファイル `NovelShelf App Store`（`jp.novelshelf.app`）を手動作成**
+     （証明書 = `novelshelf-dist`）。
+  3. Codemagic → iOS provisioning profiles → **Fetch profiles** で取り込み
+     （reference name `novelshelf_appstore`）。
+- **Team ID**: `28Q7PP2X98`。Identifier `jp.novelshelf.app` は Apple 側に登録済みだった。
+- ビルド#4 実行中（署名整備後の初通過を狙う）。結果は次セッションで追記。
+
 ## モバイルアプリ化 体感速度改善 + iOS 着手（2026-09-06）
 
 **体感速度（完了・デプロイ済み）**: 画面遷移が毎回「空白→スピナー→API 2〜3秒待ち」だった。

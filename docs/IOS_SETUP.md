@@ -35,21 +35,43 @@ GitHub push → Codemagic(クラウド Mac) → npm ci → web ビルド → cap
 2. 名前: `codemagic` / アクセス: **App Manager**
 3. 生成 → **`.p8` ファイルをダウンロード**（1回だけ）+ **Key ID** と **Issuer ID** をメモ
 
+（2026-09-06 実績: Key ID `TL4KRXDVV3` / Issuer `6ba00ea2-c326-498e-8dd6-e9cbf2a70fd4` / Team ID `28Q7PP2X98`）
+
 ### 4. Codemagic を設定
 1. https://codemagic.io/ に GitHub アカウントでサインアップ（無料枠 月500分）
-2. リポジトリ `YUKI-1223-debug/NovelShelfApp-project` を追加
-3. **Teams → Integrations → App Store Connect → Add key**:
-   - Name: `novelshelf-appstore`（`codemagic.yaml` の `integrations.app_store_connect` と一致）
+2. **GitHub App を接続**: `github.com/settings/installations` の Codemagic CI/CD で
+   `NovelShelfApp-project` へのリポジトリアクセスを許可（ここが未設定だと Codemagic の
+   "Install GitHub App" ボタンが無反応のまま止まる）。
+3. Add application → `NovelShelfApp-project` → project type iOS → "Use codemagic.yaml"。
+4. **右上アカウント名 → Teams → Personal Account → Integrations → Developer Portal → Connect**:
+   - **Name: `novelshelf-appstore`**（`codemagic.yaml` の `integrations.app_store_connect` と完全一致）
    - Issuer ID / Key ID / `.p8` の中身 を貼り付け
-4. **App settings → Environment variables**:
-   - Group 名: `novelshelf_ios`
-   - `APP_STORE_APP_ID` = 手順2でメモした数値 ID（"Secure" オフでよい）
-5. `codemagic.yaml` を検出させる（アプリ設定で "Use codemagic.yaml" を選択）
+   - ※`APP_STORE_APP_ID` は `codemagic.yaml` に直書き済みのため環境変数グループは不要。
 
-### 5. 最初のビルド
-- Codemagic で `ios-testflight` ワークフローを Start build。
-- 初回は署名証明書・プロビジョニングプロファイルが自動作成される（`--create`）。
-- 成功すると TestFlight に上がる（処理に10〜30分）。
+### 5. コード署名ファイルを用意（重要・自動では作られない）
+
+`environment.ios_signing`（自動コード署名）を使っているが、**プロビジョニングプロファイルの
+新規作成まではやってくれない**。証明書の秘密鍵も Apple からは取得できない。初回だけ手動で用意する:
+
+1. **配布証明書を Codemagic で生成**（秘密鍵ごと Codemagic に保存される）:
+   Settings → **Code signing identities** → **iOS certificates** → **Generate certificate**
+   - Reference name: `novelshelf-dist`
+   - App Store Connect API key: `novelshelf-appstore`
+   - Type: **Apple Distribution**
+2. **App Store プロファイルを Apple Developer Portal で手動作成**:
+   https://developer.apple.com/account/resources/profiles/list → ＋ →
+   **Distribution → App Store Connect** → App ID `jp.novelshelf.app` →
+   証明書 = 手順1の Distribution 証明書 → 名前 `NovelShelf App Store` → Generate
+3. **Codemagic に取り込む**: Code signing identities → **iOS provisioning profiles** →
+   **Fetch profiles**（API key `novelshelf-appstore`）→ `NovelShelf App Store` を
+   reference name `novelshelf_appstore` で Download。
+
+（証明書の有効期限は生成から1年。切れたら手順1〜3をやり直す）
+
+### 6. 最初のビルド
+- Codemagic で `ios-testflight` ワークフローを Start build（branch `main`）。
+- 初回は Swift Package コンパイルで時間がかかる（10〜20分）。
+- 成功すると TestFlight に上がる（App Store Connect 側の処理に更に10〜30分）。
 
 ### 6. iPhone にインストール
 1. App Store から **TestFlight** アプリを入れる
