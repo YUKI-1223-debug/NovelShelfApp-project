@@ -73,8 +73,12 @@
     受領後こちらで: ファイル配置 → `NEXT_PUBLIC_PUSH_ENABLED=true` でビルド →
     ミニPCに `FIREBASE_CREDENTIALS` 追加してデプロイ → 実機で通知確認。
   - 通知 ON/OFF のアプリ内設定（`V10` push_enabled）は任意（当面 OS の通知設定で代替可）。
-- **フェーズB**: iOS を無料 Apple ID + クラウド Mac ビルド（Codemagic）で実機確認（プッシュ以外）。
-- **フェーズC**: Apple Developer $99/年 加入 → iOS プッシュ開通 + TestFlight。
+- **フェーズB（進行中）**: iOS。ユーザーが**選択肢A（$99/年 加入 + Codemagic + TestFlight）**を選択。
+  `frontend/ios/` 生成済み・`codemagic.yaml` 作成済み。手順は [IOS_SETUP.md](IOS_SETUP.md)。
+  **要ユーザー**: Apple Developer 加入 → App Store Connect アプリ登録 + API キー → Codemagic 設定 → 初回ビルド。
+  iOS のプッシュは当面無効（コードで android 限定）。
+- **フェーズC**: iOS プッシュ（APNs キー + Firebase iOS アプリ + GoogleService-Info.plist +
+  AppDelegate 配線 + Firebase Messaging を iOS に組込み）。フェーズB が動いてから。
 - 開発環境（着手時にユーザーへ導入依頼）: JDK 17 / Android Studio（or cmdline-tools）。
 
 

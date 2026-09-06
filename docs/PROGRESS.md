@@ -2,6 +2,25 @@
 
 最終更新: 2026-09-06
 
+## モバイルアプリ化 体感速度改善 + iOS 着手（2026-09-06）
+
+**体感速度（完了・デプロイ済み）**: 画面遷移が毎回「空白→スピナー→API 2〜3秒待ち」だった。
+本棚・作品詳細・読書画面を stale-while-revalidate 化（前回の内容を即描画→裏で最新取得）。
+`novelMeta` キャッシュ（IndexedDB DB v4、新設）。実機で **2〜3秒 → 約1秒**（ユーザー確認済み）。
+ログ上ナビゲーションはフルリロードではなく画面内遷移（ハードリロード0回）と判明。
+残（任意）: 1回目のタップも速くする先読み・IndexedDB接続の使い回し。
+
+**iOS（フェーズB、Codemagic + TestFlight）**: ユーザーが「$99/年 加入 + TestFlight」を選択（選択肢A）。
+- `@capacitor/ios` 導入、`npx cap add ios` で `frontend/ios/` 生成（SwiftPM 方式、Windows で生成可）。
+- `codemagic.yaml`（クラウド Mac → web ビルド → cap sync → 署名 → IPA → TestFlight）、
+  `docs/IOS_SETUP.md`（Apple Developer 加入〜TestFlight の手順、フェーズC = iOS プッシュ）。
+- iOS プッシュは当面コードで無効（`@capacitor/push-notifications` は iOS で APNs トークンしか返さず
+  バックエンドは FCM トークン期待 → フェーズC で iOS に Firebase Messaging 組込み）。
+- **要ユーザー**: Apple Developer 加入 → App Store Connect（アプリ登録 + API キー）→ Codemagic 設定 → 初回ビルド。
+
+**プッシュ通知（Android）**: 送信経路は完全動作（実機で通知レコード確認）。ユーザー環境ではまだ
+通知に気づけていない（表示/サイレント/DND の切り分けは保留、機能自体は完成）。
+
 ## モバイルアプリ化 フェーズA: サーバープッシュ通知 実装（2026-09-06、Firebase 設定待ち）
 
 ミニPCで更新検知 → FCM（iOS は APNs 中継）→ 端末、の構成。コードは実装完了。**バックエンド無停止で
