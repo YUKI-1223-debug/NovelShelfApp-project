@@ -1,8 +1,34 @@
 "use client";
 
+import { useState } from "react";
 import { AppLink as Link } from "@/components/AppLink";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useSettings } from "@/lib/settings/SettingsProvider";
+import { pushApi } from "@/lib/api";
+
+function PushTestRow() {
+  const [state, setState] = useState<"idle" | "sending" | { msg: string }>("idle");
+  async function send() {
+    setState("sending");
+    try {
+      const res = await pushApi.sendTest();
+      setState({
+        msg: res.sent > 0 ? `${res.sent}台の端末へ送信しました` : res.message ?? "登録済みの端末がありません",
+      });
+    } catch {
+      setState({ msg: "送信に失敗しました" });
+    }
+  }
+  return (
+    <div className="border-b border-border px-4 py-3 text-sm">
+      <button onClick={send} disabled={state === "sending"} className="text-left text-accent-soft disabled:opacity-50">
+        {state === "sending" ? "送信中..." : "テスト通知を送る"}
+      </button>
+      {typeof state === "object" && <p className="mt-1 text-xs text-muted">{state.msg}</p>}
+    </div>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -142,6 +168,16 @@ export default function SettingsPage() {
               </SegButton>
             </div>
           </Row>
+          {Capacitor.isNativePlatform() && (
+            <>
+              <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">通知</p>
+              <PushTestRow />
+              <p className="px-4 pt-1 text-xs text-muted">
+                本棚の作品に新しい話が出ると通知します。届かない場合は端末の設定でこのアプリの通知を確認してください。
+              </p>
+            </>
+          )}
+
           <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">ヘルプ</p>
           <Link href="/settings/guide" className="border-b border-border px-4 py-3 text-sm">
             使い方ガイド
