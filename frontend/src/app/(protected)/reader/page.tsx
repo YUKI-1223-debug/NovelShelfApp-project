@@ -758,7 +758,9 @@ function ReaderPageContent() {
         onTouchStart={handleContentTouchStart}
         onTouchEnd={handleContentTouchEnd}
         className={
-          isPaged ? "absolute inset-0 overflow-hidden" : `absolute inset-0 overflow-auto ${paddingClass} py-6`
+          isPaged
+            ? "absolute inset-0 overflow-hidden"
+            : `absolute inset-0 overflow-auto ${paddingClass} safe-pt safe-pb safe-px py-6`
         }
       >
         {isLoading ? (
@@ -863,7 +865,7 @@ function ReaderPageContent() {
           chromeVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
+        <header className="safe-pt safe-px flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push(routes.novel(novelId))} className="flex items-center gap-1 text-muted">
               <ChevronLeftIcon className="h-4 w-4" /> 戻る
@@ -944,7 +946,7 @@ function ReaderPageContent() {
       </div>
 
       <footer
-        className={`absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
+        className={`safe-pb safe-px absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
           chromeVisible ? "translate-y-0" : "translate-y-full"
         }`}
       >

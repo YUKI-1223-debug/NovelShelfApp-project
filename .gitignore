@@ -10,3 +10,12 @@ google-services.json
 # App Store Connect API キー
 *.p8
 AuthKey_*
+
+# iOS 署名ファイル（秘密鍵を含む。NovelShelf-secrets/ に保管）
+*.p12
+*.mobileprovision
+
+# ローカル作業メモ・スクリーンショット（リポジトリに入れない）
+/URL.txt
+/ScreenShot/
+/新規 テキスト ドキュメント.txt

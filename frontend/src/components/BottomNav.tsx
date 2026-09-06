@@ -15,7 +15,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 z-10 flex border-t border-border bg-card">
+    <nav className="safe-pb safe-px sticky bottom-0 z-10 flex border-t border-border bg-card">
       {ITEMS.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (
