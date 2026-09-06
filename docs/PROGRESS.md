@@ -31,8 +31,18 @@
   - 既知の軽微事象: 画面ロック状態で `adb` から強制起動すると起動直後に pause/stop へ遷移し
     `Uncaught TypeError: ...triggerEvent`（native-bridge のライフサイクル競合）が1回出る。
     通常起動（解錠してアイコンから）での再現は要確認。API 疎通・描画には影響なし。
+- **通常起動（解錠→アイコン）で再確認（2026-09-06）**: `triggerEvent` / asset エラーとも **0 件**。
+  本棚→作品→話一覧→本文取得（`GET /chapters/{id}/content`）→読書位置まで正常。ユーザー「大丈夫そう」。
+  → `triggerEvent` はロック画面への `adb` 強制起動時のみの競合と確定。
+- **リリース署名（2026-09-06、完了）**: keystore 生成（`novelshelf-release.keystore` / alias `novelshelf` /
+  RSA2048 / 27年）。`android/app/build.gradle` に `keystore.properties`（git 管理外）から読む
+  `signingConfig` を追加。**release apk ビルド・実機インストール成功**（v1.0 / signature v2 / 3.66MB）。
+  keystore は `.gitignore` 済み、`C:\Users\yuuki\WorkSpace\NovelShelf-secrets\` にバックアップ。
+  手順は [ANDROID_SIGNING.md](ANDROID_SIGNING.md)。
 - **未実施（フェーズAの残）**:
-  - 通常起動での `triggerEvent` 再現確認、縦書き表示・ページ送り・戻るボタンの実機目視確認（要ユーザー）。
+  - 縦書き表示・ページ送り・戻るボタンの実機目視確認（要ユーザー、任意）。
+  - サーバープッシュ通知（次の大タスク）: `V9` トークン表 + `POST/DELETE /push/devices` +
+    `@Scheduled` 更新検知 + Firebase Admin SDK。**Firebase プロジェクト作成が要ユーザー**。
   - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` を追加してミニPCへ反映（要ユーザー: デプロイ）。
   - リリース署名（keystore 作成）→ release apk。当面は debug apk でも実機インストールは可能。
   - サーバープッシュ通知（`V9` トークン表 + `/push/devices` + `@Scheduled` + Firebase Admin SDK）。
