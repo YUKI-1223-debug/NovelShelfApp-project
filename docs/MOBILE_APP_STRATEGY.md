@@ -354,13 +354,16 @@ Google Play に出す場合のみ Play Console 登録料 **$25（1回のみ）**
 
 ---
 
-## 8. 開発環境が Linux 中心の場合の対応可否
+## 8. 開発環境（実機: Windows 11 / JDK 21 導入済み）の対応可否
 
-| 作業 | Linux だけで可能か |
+> 実際の開発機は **Windows 11**（当初 "Linux 中心" と仮定していたが確認したところ Windows）。
+> Android ビルドは Windows でも Linux と同等に完結する。JDK 21（Temurin）導入済み・Android SDK 未導入。
+
+| 作業 | 開発機（Windows）だけで可能か |
 |---|---|
 | Capacitor プロジェクト管理・Web ビルド | ✅ 完全に可能 |
-| **Android の apk ビルド・署名・実機インストール** | ✅ **完全に可能**（Android Studio / SDK は Linux 版あり） |
-| **iOS の ipa ビルド・署名** | ❌ ローカル不可。**macOS + Xcode が必須**（Apple の制約） |
+| **Android の apk ビルド・署名・実機インストール** | ✅ **完全に可能**（Android Studio / SDK は Windows 版あり。Linux/macOS でも同様） |
+| **iOS の ipa ビルド・署名** | ❌ ローカル不可。**macOS + Xcode が必須**（Apple の制約。Windows でも Linux でも同じ） |
 | iOS を Mac なしでビルドする現実的な方法 | ✅ **クラウド Mac ビルドサービス**を使う |
 
 ### 8.1 Mac を買わずに iOS ビルドする現実的な選択肢
