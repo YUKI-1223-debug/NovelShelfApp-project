@@ -36,8 +36,15 @@
   - `docker-compose.minipc.yml` が `../secrets:/run/secrets:ro` をマウント、`FIREBASE_CREDENTIALS` 設定済み。
   - バックエンドログ: `Firebase Cloud Messaging を初期化しました（project=novelshelf-6520c）`。
     ※初回は `FirebaseOptions` の projectId 自動検出が効かず `project=null` → `setProjectId` 明示指定で修正。
-- **残（要ユーザー）**: スマホアプリでログイン → 通知許可 → トークン登録を確認 →
-  `POST /api/v1/push/test` で自分の端末にテスト通知が届くか。以降は毎日 07/19時 に自動チェック。
+- **FCM 送信の不具合と修正（2026-09-06）**: firebase-admin SDK 9.5.0 は send 時に
+  `google-http-client` の GZIP 処理バグ（`Not in GZIP format`）で失敗（実機で「成功0/失敗1」）。
+  → SDK を撤去し **FCM HTTP v1 API を `java.net.http.HttpClient` で直接呼ぶ実装**へ書き換え
+  （commit `33b443f`）。依存も `firebase-admin`（grpc/netty 等）→ `google-auth-library-oauth2-http` に軽量化。
+  実機（Xperia 10 VI）へ通知が実際に配信・表示されることを確認。ミニPCへデプロイ済み
+  （`FCM プッシュ通知を有効化しました（project=novelshelf-6520c）`）。
+- デバイストークン登録も確認（`push_device_tokens` に ANDROID トークン1件）。
+- **残（要ユーザー）**: アプリの設定→通知→「テスト通知を送る」で最終確認。以降は毎日 07/19時 に自動チェック。
+- 既知の軽微: 通知チャンネル未定義（`fcm_fallback_notification_channel` 使用の警告）・通知アイコン未調整（polish）。
 
 ## モバイルアプリ化 フェーズA: Capacitor 導入・Android プロジェクト（2026-09-06）
 
