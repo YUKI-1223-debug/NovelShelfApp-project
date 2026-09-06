@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { ChevronLeftIcon } from "@/components/icons";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError } from "@/lib/api";
 

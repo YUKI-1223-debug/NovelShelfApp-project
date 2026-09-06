@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { BookCover } from "@/components/BookCover";
 import { ApiError, updatesApi, type Novel } from "@/lib/api";
 import { routes } from "@/lib/routes";

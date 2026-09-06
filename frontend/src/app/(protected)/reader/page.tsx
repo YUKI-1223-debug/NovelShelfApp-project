@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
 import { ChevronLeftIcon, ChevronRightIcon, HeartIcon } from "@/components/icons";

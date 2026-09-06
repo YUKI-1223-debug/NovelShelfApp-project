@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 

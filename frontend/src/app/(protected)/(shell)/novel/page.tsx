@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
 import { ChevronLeftIcon, PencilIcon } from "@/components/icons";

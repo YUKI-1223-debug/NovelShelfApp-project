@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { authApi } from "@/lib/api";
 
 export default function ForgotPasswordPage() {

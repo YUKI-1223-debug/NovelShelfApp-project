@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { AddNovelDialog } from "@/components/AddNovelDialog";
 import { ExternalLinkIcon, HeartIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import {

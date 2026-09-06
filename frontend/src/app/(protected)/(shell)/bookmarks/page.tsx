@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/AppLink";
 import { TrashIcon } from "@/components/icons";
 import { ApiError, bookmarksApi, type Bookmark } from "@/lib/api";
 import { routes } from "@/lib/routes";
