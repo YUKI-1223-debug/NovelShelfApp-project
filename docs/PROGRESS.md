@@ -21,9 +21,18 @@
   - `eslint.config.mjs`: `android/**` `ios/**` を ignore に追加。
 - `.env.example`: 本番 API を叩くアプリ向けに CORS 許可オリジン（`https://localhost` /
   `capacitor://localhost`）の追記例を記載（**バックエンドのコード変更は不要**、デプロイ時の env のみ）。
+- **実機インストール・動作確認（2026-09-06、Xperia 10 VI / SO-52C / Android・docomo）**:
+  - `adb install` 成功。アプリ起動 → 画面アセットは端末バンドルから読込（`https://localhost/...`）。
+  - **CapacitorHttp 経由で本番 API に到達**（`_capacitor_http_interceptor_?u=https://novelshelf.jp/...`、
+    CORS 追加なしで疎通）。ユーザーがログイン→本棚→作品→読書まで操作し、
+    `GET /shelf` `GET /settings` `GET /sites` `GET /reading/positions/{id}` = 200、
+    `POST /reading/history` = 201 を実機ログで確認。**端末間の読書位置同期も動作**。
+  - RSC プリフェッチの `Unable to open asset URL` 連発 → `AppLink`（`prefetch=false`）で解消（ログ 0 件）。
+  - 既知の軽微事象: 画面ロック状態で `adb` から強制起動すると起動直後に pause/stop へ遷移し
+    `Uncaught TypeError: ...triggerEvent`（native-bridge のライフサイクル競合）が1回出る。
+    通常起動（解錠してアイコンから）での再現は要確認。API 疎通・描画には影響なし。
 - **未実施（フェーズAの残）**:
-  - ユーザーの Android 実機へインストールして動作確認（本棚・読書・縦書き・同期）。
-    → 実機を USB 接続（`adb install`）するか、apk をファイル転送。**要ユーザー操作**。
+  - 通常起動での `triggerEvent` 再現確認、縦書き表示・ページ送り・戻るボタンの実機目視確認（要ユーザー）。
   - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` を追加してミニPCへ反映（要ユーザー: デプロイ）。
   - リリース署名（keystore 作成）→ release apk。当面は debug apk でも実機インストールは可能。
   - サーバープッシュ通知（`V9` トークン表 + `/push/devices` + `@Scheduled` + Firebase Admin SDK）。
