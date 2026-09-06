@@ -73,13 +73,28 @@
     受領後こちらで: ファイル配置 → `NEXT_PUBLIC_PUSH_ENABLED=true` でビルド →
     ミニPCに `FIREBASE_CREDENTIALS` 追加してデプロイ → 実機で通知確認。
   - 通知 ON/OFF のアプリ内設定（`V10` push_enabled）は任意（当面 OS の通知設定で代替可）。
-- **フェーズB（進行中）**: iOS。ユーザーが**選択肢A（$99/年 加入 + Codemagic + TestFlight）**を選択。
-  `frontend/ios/` 生成済み・`codemagic.yaml` 作成済み。手順は [IOS_SETUP.md](IOS_SETUP.md)。
-  **要ユーザー**: Apple Developer 加入 → App Store Connect アプリ登録 + API キー → Codemagic 設定 → 初回ビルド。
-  iOS のプッシュは当面無効（コードで android 限定）。
-- **フェーズC**: iOS プッシュ（APNs キー + Firebase iOS アプリ + GoogleService-Info.plist +
-  AppDelegate 配線 + Firebase Messaging を iOS に組込み）。フェーズB が動いてから。
-- 開発環境（着手時にユーザーへ導入依頼）: JDK 17 / Android Studio（or cmdline-tools）。
+- **フェーズB（ほぼ完了、2026-09-07）**: iOS。Codemagic + TestFlight。
+  Apple Developer 加入・App Store Connect アプリ登録（ID `6809167553`）・API キー登録・
+  Codemagic 設定・署名整備（証明書 `novelshelf-dist` + 手動 App Store プロファイル）・
+  **TestFlight 配信まで到達、ユーザーの iPhone にインストール済み**。詳細な経緯は [PROGRESS.md](PROGRESS.md) 冒頭。
+  - **定期ビルド設定済み**: Codemagic Scheduled builds で毎週月曜 01:00 UTC に自動ビルド
+    （TestFlight ビルドの90日期限対策）。
+  - **残（要ユーザー、次回セッション頭）**: 最新ビルド（読書画面セーフエリア修正 `0ce3ff8` +
+    外部ブラウザ `4b12943` + 本棚セーフエリア `b30f765` 込み）を実機で確認:
+    セーフエリア（縦/横）・作品追加で外部ブラウザが開くか・読書画面ヘッダーの誤タップ・
+    ログイン→本棚（API疎通）・縦書き/ページ送り/戻る。
+  - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。
+  - アプリアイコンが Capacitor デフォルトのまま（Android は設定済み）。polish 項目。
+- **フェーズC（未着手）**: iOS プッシュ。APNs 認証キー（Apple）+ Firebase に iOS アプリ追加 +
+  `GoogleService-Info.plist` + Firebase に APNs キー登録（**要ユーザー**）→ こちらで
+  Push capability + entitlement + `AppDelegate` の APNs 配線 + iOS に Firebase Messaging 組込み
+  （`@capacitor/push-notifications` は iOS で APNs トークンしか返さずバックエンドは FCM 前提）+
+  `PushNotifications.tsx` に `ios` 追加 → TestFlight 再ビルド → 実機で通知確認。手順は [IOS_SETUP.md](IOS_SETUP.md)。
+- 開発環境: JDK 17 / Android SDK（導入済み）。iOS ビルドはクラウド（Codemagic）なので Mac 不要。
+
+**⚠️ 2026-09-06 の事故**: `git add -A` で配布証明書 `.p12`（秘密鍵入り）等を public リポジトリに
+誤 push → force-push で履歴除去済み。秘密ファイルは `WorkSpace/NovelShelf-secrets/` に退避。
+以後、このリポジトリでは `git add` は**必ずパスを明示**する（`git add -A` / `git add .` 禁止）。
 
 
 ### ミニPC移設まわり — カットオーバー完了（2026-09-04）
