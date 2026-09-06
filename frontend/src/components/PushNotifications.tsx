@@ -34,6 +34,19 @@ export function PushNotifications() {
       if (!listenersReadyRef.current) {
         listenersReadyRef.current = true;
 
+        // 音・ヘッドアップ表示が出る通知チャンネル（Android 8+）。
+        // ID はバックエンド FirebasePushSender.ANDROID_CHANNEL_ID と一致させること。
+        if (Capacitor.getPlatform() === "android") {
+          PushNotifications.createChannel({
+            id: "novelshelf-updates",
+            name: "作品の更新",
+            description: "本棚の作品に新しい話が公開されたときの通知",
+            importance: 5,
+            visibility: 1,
+            vibration: true,
+          }).catch(() => {});
+        }
+
         await PushNotifications.addListener("registration", (token) => {
           registeredTokenRef.current = token.value;
           try {

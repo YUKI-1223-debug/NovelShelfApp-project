@@ -24,6 +24,8 @@ import tools.jackson.databind.node.ObjectNode;
 public class FirebasePushSender implements PushSender {
 
     private static final Logger log = LoggerFactory.getLogger(FirebasePushSender.class);
+    /** アプリ側で作成する通知チャンネル ID（PushNotifications.tsx と一致させること）。 */
+    private static final String ANDROID_CHANNEL_ID = "novelshelf-updates";
 
     private final GoogleCredentials credentials;
     private final String endpoint;
@@ -79,6 +81,17 @@ public class FirebasePushSender implements PushSender {
         msg.put("token", token);
         msg.putObject("notification").put("title", message.title()).put("body", message.body());
         msg.set("data", data);
+
+        // Android: 高優先度 + ヘッドアップ表示されるチャンネルを指定（既定の fallback チャンネルは
+        // 音もヘッドアップも出ず、通知に気づけないため）。
+        ObjectNode android = msg.putObject("android");
+        android.put("priority", "high");
+        android.putObject("notification")
+                .put("channel_id", ANDROID_CHANNEL_ID)
+                .put("default_sound", true);
+        // iOS: バナー + 音。
+        msg.putObject("apns").putObject("payload").putObject("aps")
+                .put("sound", "default");
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
