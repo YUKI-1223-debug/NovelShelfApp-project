@@ -31,4 +31,12 @@ public interface BookshelfEntryRepository extends JpaRepository<BookshelfEntry, 
         WHERE e.userId = :userId AND t.name = :tagName
         """)
     List<UUID> findNovelIdsByUserIdAndTagName(@Param("userId") UUID userId, @Param("tagName") String tagName);
+
+    /** いずれかのユーザーの本棚に入っている作品ID（更新チェックの対象集合）。 */
+    @Query("SELECT DISTINCT e.novelId FROM BookshelfEntry e")
+    List<UUID> findDistinctNovelIds();
+
+    /** その作品を本棚に持つユーザーID。 */
+    @Query("SELECT e.userId FROM BookshelfEntry e WHERE e.novelId = :novelId")
+    List<UUID> findUserIdsByNovelId(@Param("novelId") UUID novelId);
 }

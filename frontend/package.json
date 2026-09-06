@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "build:app": "cross-env NEXT_OUTPUT=export NEXT_PUBLIC_API_BASE_URL=https://novelshelf.jp/api/v1 next build",
+    "build:app": "cross-env NEXT_OUTPUT=export NEXT_PUBLIC_API_BASE_URL=https://novelshelf.jp/api/v1 NEXT_PUBLIC_PUSH_ENABLED=false next build",
     "sync:android": "npm run build:app && cap sync android",
     "open:android": "cap open android"
   },
@@ -18,11 +18,13 @@
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -30,7 +32,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@capacitor/cli": "^8.5.1",
     "@vitejs/plugin-react": "^6.0.3",
     "cross-env": "^10.1.0",
     "eslint": "^9",

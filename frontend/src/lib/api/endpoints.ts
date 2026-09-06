@@ -116,3 +116,11 @@ export const offlineApi = {
   add: (chapterId: string) => apiFetch<OfflineSavePreference>("/offline/preferences", { method: "POST", body: { chapterId } }),
   remove: (chapterId: string) => apiFetch<void>(`/offline/preferences/${chapterId}`, { method: "DELETE" }),
 };
+
+export const pushApi = {
+  registerDevice: (platform: "ANDROID" | "IOS", token: string) =>
+    apiFetch<void>("/push/devices", { method: "POST", body: { platform, token } }),
+  unregisterDevice: (token: string) =>
+    apiFetch<void>("/push/devices", { method: "DELETE", body: { token } }),
+  sendTest: () => apiFetch<{ sent: number; removed?: number; message?: string }>("/push/test", { method: "POST" }),
+};

@@ -38,6 +38,9 @@ dependencies {
 
 	implementation 'org.jsoup:jsoup:1.22.2'
 
+	// プッシュ通知（FCM 経由。iOS は APNs 中継）。サービスアカウント JSON 未設定時は送信せずログのみ。
+	implementation 'com.google.firebase:firebase-admin:9.5.0'
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 

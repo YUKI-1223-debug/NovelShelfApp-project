@@ -72,6 +72,13 @@ novelshelf:
   cors:
     # 本番はCORS_ALLOWED_ORIGINSにカンマ区切りで実際のオリジン(例: https://novelshelf.jp)を指定する
     allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+  push:
+    # Firebase サービスアカウント JSON のパス。未設定なら FCM 送信は無効（ログ出力のみ）。
+    # ミニPCではコンテナにマウントしたパスを FIREBASE_CREDENTIALS で渡す。
+    firebase-credentials: ${FIREBASE_CREDENTIALS:}
+    # 本棚作品の更新検知ジョブの cron（Asia/Tokyo）。既定 07:00 / 19:00。
+    # 外部サイトへのアクセス頻度を抑えるため1日数回に留めること。
+    update-check-cron: ${PUSH_UPDATE_CHECK_CRON:0 0 7,19 * * *}
   mail:
     from: ${MAIL_FROM:no-reply@novelshelf.jp}
     reset-token-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:30}
