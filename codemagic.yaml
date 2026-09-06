@@ -15,7 +15,7 @@ workflows:
         APP_STORE_APP_ID: "6809167553"
         XCODE_PROJECT: "frontend/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
-      node: 20
+      node: 22
       xcode: latest
     scripts:
       - name: npm install
