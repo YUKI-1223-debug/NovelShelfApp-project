@@ -1,6 +1,7 @@
 package com.novelshelf.infrastructure.push;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -37,9 +38,14 @@ public class PushConfig {
             return new LoggingPushSender();
         }
         try (FileInputStream credentials = new FileInputStream(credentialsPath.toFile())) {
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(credentials))
-                    .build();
+            GoogleCredentials googleCredentials = GoogleCredentials.fromStream(credentials);
+            FirebaseOptions.Builder optionsBuilder = FirebaseOptions.builder().setCredentials(googleCredentials);
+            // サービスアカウント JSON からプロジェクト ID を明示指定する（自動検出に失敗すると
+            // 送信 URL の projects/{id} が null になり送信できないため）。
+            if (googleCredentials instanceof ServiceAccountCredentials sa && sa.getProjectId() != null) {
+                optionsBuilder.setProjectId(sa.getProjectId());
+            }
+            FirebaseOptions options = optionsBuilder.build();
             FirebaseApp app = FirebaseApp.getApps().isEmpty()
                     ? FirebaseApp.initializeApp(options)
                     : FirebaseApp.getInstance();
