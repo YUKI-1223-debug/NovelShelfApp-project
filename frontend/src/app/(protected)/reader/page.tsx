@@ -751,16 +751,17 @@ function ReaderPageContent() {
   const effectivePadding = columnGap / 2;
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-background">
+    // セーフエリア（ノッチ/ステータスバー/ホームインジケータ/横向き時の左右）はこの
+    // 最外周ラッパーのパディングで確保する。子は absolute inset-0 なのでパディング内に
+    // 収まり、本文の余白サイズ設定（paddingClass）やヘッダー/フッターの見た目を壊さない。
+    <div className="safe-pt safe-pb safe-px relative h-dvh overflow-hidden bg-background">
       <div
         ref={scrollRef}
         onClick={handleContentClick}
         onTouchStart={handleContentTouchStart}
         onTouchEnd={handleContentTouchEnd}
         className={
-          isPaged
-            ? "absolute inset-0 overflow-hidden"
-            : `absolute inset-0 overflow-auto ${paddingClass} safe-pt safe-pb safe-px py-6`
+          isPaged ? "absolute inset-0 overflow-hidden" : `absolute inset-0 overflow-auto ${paddingClass} py-6`
         }
       >
         {isLoading ? (
@@ -865,7 +866,7 @@ function ReaderPageContent() {
           chromeVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        <header className="safe-pt safe-px flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
+        <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
           <div className="flex items-center gap-1">
             <button
               onClick={() => router.push(routes.novel(novelId))}
@@ -956,7 +957,7 @@ function ReaderPageContent() {
       </div>
 
       <footer
-        className={`safe-pb safe-px absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
+        className={`absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
           chromeVisible ? "translate-y-0" : "translate-y-full"
         }`}
       >
