@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { CapacitorBridge } from "@/components/CapacitorBridge";
 import { OfflinePositionSync } from "@/components/OfflinePositionSync";
 import { THEME_INIT_SCRIPT } from "@/lib/theme/applyTheme";
 import "./globals.css";
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <ServiceWorkerRegister />
+          <CapacitorBridge />
           <OfflinePositionSync />
           {children}
         </AuthProvider>

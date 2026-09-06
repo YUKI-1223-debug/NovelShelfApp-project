@@ -1,0 +1,12 @@
+# Capacitor/Gradle ネイティブプロジェクト。Windows で生成しても他 OS / CI で壊れないよう改行を固定する。
+* text=auto eol=lf
+*.bat text eol=crlf
+gradlew text eol=lf
+
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.keystore binary
+*.jks binary

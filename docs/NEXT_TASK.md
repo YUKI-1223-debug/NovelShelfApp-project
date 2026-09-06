@@ -62,9 +62,13 @@
 - **フェーズ0（Next.js 静的エクスポート化）— ✅ 完了**（2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。
   動的ルートを `/novel?id=` `/reader?novel=&chapter=` `/author?name=` に移行、`NEXT_OUTPUT=export` で
   `out/` 生成を確認。Web の standalone ビルドは無変更。
-- **フェーズA（次）**: Capacitor 導入 → `npx cap add android` → 署名鍵 → apk ビルド → 実機インストール →
-  Android サーバープッシュ（`V9` トークン表 + `POST/DELETE /push/devices` + `@Scheduled` 更新検知 +
-  Firebase Admin SDK）→ 通知 ON/OFF 設定（`V10`）。Firebase プロジェクト（無料）作成が要る。
+- **フェーズA（進行中）**: Capacitor 8 導入・`frontend/android` 生成・**デバッグ apk ビルド成功**まで完了
+  （2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。残り:
+  - ユーザーの Android 実機へインストールして動作確認（**要ユーザー: 実機接続 or apk 転送**）
+  - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` 追加 → ミニPC反映（**要ユーザー: デプロイ**）
+  - リリース署名鍵（keystore）作成 → release apk
+  - Android サーバープッシュ（`V9` トークン表 + `POST/DELETE /push/devices` + `@Scheduled` 更新検知 +
+    Firebase Admin SDK）→ 通知 ON/OFF 設定（`V10`）。Firebase プロジェクト（無料）作成が要る。
 - **フェーズB**: iOS を無料 Apple ID + クラウド Mac ビルド（Codemagic）で実機確認（プッシュ以外）。
 - **フェーズC**: Apple Developer $99/年 加入 → iOS プッシュ開通 + TestFlight。
 - 開発環境（着手時にユーザーへ導入依頼）: JDK 17 / Android Studio（or cmdline-tools）。

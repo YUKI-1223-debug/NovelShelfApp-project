@@ -9,9 +9,15 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:app": "cross-env NEXT_OUTPUT=export NEXT_PUBLIC_API_BASE_URL=https://novelshelf.jp/api/v1 next build",
+    "sync:android": "npm run build:app && cap sync android",
+    "open:android": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.1",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -24,7 +30,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@capacitor/cli": "^8.5.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "fake-indexeddb": "^6.2.5",

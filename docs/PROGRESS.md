@@ -2,6 +2,32 @@
 
 最終更新: 2026-09-06
 
+## モバイルアプリ化 フェーズA(進行中): Capacitor 導入・Android プロジェクト（2026-09-06）
+
+- 開発機（Windows 11）に **Android SDK を導入**（`%LOCALAPPDATA%\Android\Sdk`、cmdline-tools 経由で
+  `platform-tools` / `platforms;android-35` / `build-tools;35.0.0`。Android Studio 本体も winget で導入済み）。
+- **Capacitor 8.5.1 を導入**（`@capacitor/core` `/cli` `/android` `/app` + `cross-env`）。
+  - `frontend/capacitor.config.ts`: appId `jp.novelshelf.app` / appName `NovelShelf` / webDir `out` /
+    server.url なし（＝アセットを端末にバンドルし完全オフライン起動）。
+  - npm scripts: `build:app`（`NEXT_OUTPUT=export` + 本番APIを焼き込んで static export）/
+    `sync:android`（build:app → `cap sync`）/ `open:android`。
+  - `npx cap add android` で `frontend/android/` native プロジェクト生成（コミット対象。build 生成物と
+    `local.properties` は `android/.gitignore` で除外）。
+- **`frontend/android` の Gradle デバッグビルド成功**（`./gradlew :app:assembleDebug` →
+  `app-debug.apk` 約4.6MB、`jp.novelshelf.app`）。ツールチェーンが端末上で通ることを確認。
+- Web 側の調整:
+  - `ServiceWorkerRegister`: ネイティブ（`Capacitor.isNativePlatform()`）では SW 登録をスキップ。
+  - `CapacitorBridge`（新規）: Android ハードウェア戻るボタン → 履歴があれば戻る、無ければ `App.exitApp()`。
+  - `eslint.config.mjs`: `android/**` `ios/**` を ignore に追加。
+- `.env.example`: 本番 API を叩くアプリ向けに CORS 許可オリジン（`https://localhost` /
+  `capacitor://localhost`）の追記例を記載（**バックエンドのコード変更は不要**、デプロイ時の env のみ）。
+- **未実施（フェーズAの残）**:
+  - ユーザーの Android 実機へインストールして動作確認（本棚・読書・縦書き・同期）。
+    → 実機を USB 接続（`adb install`）するか、apk をファイル転送。**要ユーザー操作**。
+  - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` を追加してミニPCへ反映（要ユーザー: デプロイ）。
+  - リリース署名（keystore 作成）→ release apk。当面は debug apk でも実機インストールは可能。
+  - サーバープッシュ通知（`V9` トークン表 + `/push/devices` + `@Scheduled` + Firebase Admin SDK）。
+
 ## モバイルアプリ化 フェーズ0: Next.js 静的エクスポート化（2026-09-06、完了）
 
 [MOBILE_APP_STRATEGY.md](MOBILE_APP_STRATEGY.md) の段階手順に沿って着手。フェーズ0（Web側の準備、
