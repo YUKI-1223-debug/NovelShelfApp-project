@@ -66,9 +66,13 @@
   （2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。残り:
   - ユーザーの Android 実機へインストールして動作確認（**要ユーザー: 実機接続 or apk 転送**）
   - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` 追加 → ミニPC反映（**要ユーザー: デプロイ**）
-  - リリース署名鍵（keystore）作成 → release apk
-  - Android サーバープッシュ（`V9` トークン表 + `POST/DELETE /push/devices` + `@Scheduled` 更新検知 +
-    Firebase Admin SDK）→ 通知 ON/OFF 設定（`V10`）。Firebase プロジェクト（無料）作成が要る。
+  - ~~リリース署名鍵（keystore）作成 → release apk~~ ✅ 完了（[ANDROID_SIGNING.md](ANDROID_SIGNING.md)）
+  - ~~サーバープッシュ通知のコード実装~~ ✅ 完了（バックエンド + フロント、既定は無効）。
+    **残: ユーザーが Firebase プロジェクト作成 → `google-services.json` +
+    サービスアカウント JSON を用意**（手順 [FIREBASE_SETUP.md](FIREBASE_SETUP.md)）。
+    受領後こちらで: ファイル配置 → `NEXT_PUBLIC_PUSH_ENABLED=true` でビルド →
+    ミニPCに `FIREBASE_CREDENTIALS` 追加してデプロイ → 実機で通知確認。
+  - 通知 ON/OFF のアプリ内設定（`V10` push_enabled）は任意（当面 OS の通知設定で代替可）。
 - **フェーズB**: iOS を無料 Apple ID + クラウド Mac ビルド（Codemagic）で実機確認（プッシュ以外）。
 - **フェーズC**: Apple Developer $99/年 加入 → iOS プッシュ開通 + TestFlight。
 - 開発環境（着手時にユーザーへ導入依頼）: JDK 17 / Android Studio（or cmdline-tools）。

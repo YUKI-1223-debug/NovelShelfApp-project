@@ -2,7 +2,33 @@
 
 最終更新: 2026-09-06
 
-## モバイルアプリ化 フェーズA(進行中): Capacitor 導入・Android プロジェクト（2026-09-06）
+## モバイルアプリ化 フェーズA: サーバープッシュ通知 実装（2026-09-06、Firebase 設定待ち）
+
+ミニPCで更新検知 → FCM（iOS は APNs 中継）→ 端末、の構成。コードは実装完了。**バックエンド無停止で
+段階導入できる**（`FIREBASE_CREDENTIALS` 未設定なら送信せずログのみ）。
+
+- **バックエンド**（`backend/.../push/`, `.../config/SchedulingConfig`）:
+  - `V9__push_device_tokens.sql`（`push_device_tokens`: user_id / platform / token 一意）
+  - `POST/DELETE /api/v1/push/devices`（トークン登録・解除）、`POST /api/v1/push/test`（自分へテスト送信）、
+    `POST /api/v1/push/run-update-check`（更新検知ジョブの即時実行）
+  - `NovelUpdateNotifier`: `@Scheduled`（`PUSH_UPDATE_CHECK_CRON`、既定 07:00/19:00 JST）で本棚全作品を
+    再 ingest → 話数増加分について「最新話まで未読」の利用者の端末へ通知。未対応サイトは除外。
+    無効トークン（FCM の UNREGISTERED 等）は送信結果から自動削除。レート制御は既存のサイト別
+    RateLimiter（全体1req/秒）＋ジョブ間隔で従来方針を維持。
+  - `PushSender` 抽象 → `FirebasePushSender`（`firebase-admin` 9.5.0）/ `LoggingPushSender`（未設定時）
+  - 単体テスト `NovelUpdateNotifierTest`（4件）。**Docker 起動して全55テスト成功**（Testcontainers 分含む、
+    新規 push コード投入で Spring コンテキスト起動・V9 適用に問題なしを確認）。
+- **フロントエンド**: `@capacitor/push-notifications` 8.1.2 + `PushNotifications` コンポーネント
+  （権限リクエスト→FCM トークン登録、通知タップで `/novel?id=` へ deep link）。`pushApi`。
+  - **`NEXT_PUBLIC_PUSH_ENABLED=true` のときだけ有効化**。`google-services.json` が無い状態で
+    push プラグインの `register()` を呼ぶと**ネイティブ FATAL でアプリごとクラッシュ**するため
+    （実機で確認）、Firebase 設定ファイル配置まではゲートで無効。`build:app` は現状 `false`。
+    → ゲート版 release apk を実機再インストール、クラッシュしないことを確認。
+- **残（要ユーザー）**: Firebase プロジェクト作成 → `google-services.json` と
+  サービスアカウント JSON を用意（手順 [FIREBASE_SETUP.md](FIREBASE_SETUP.md)）。
+  受領後: ファイル配置 → `PUSH_ENABLED=true` でビルド → ミニPCに `FIREBASE_CREDENTIALS` を追加してデプロイ。
+
+## モバイルアプリ化 フェーズA: Capacitor 導入・Android プロジェクト（2026-09-06）
 
 - 開発機（Windows 11）に **Android SDK を導入**（`%LOCALAPPDATA%\Android\Sdk`、cmdline-tools 経由で
   `platform-tools` / `platforms;android-35` / `build-tools;35.0.0`。Android Studio 本体も winget で導入済み）。
