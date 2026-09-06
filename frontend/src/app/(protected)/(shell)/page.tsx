@@ -17,7 +17,8 @@ import {
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
 import { routes } from "@/lib/routes";
 import { useSettings } from "@/lib/settings/SettingsProvider";
-import { toStandaloneExternalHref, useIsStandalone } from "@/lib/utils/useIsStandalone";
+import { externalLinkProps } from "@/lib/utils/externalLink";
+import { useIsStandalone } from "@/lib/utils/useIsStandalone";
 
 type FilterKey = "ALL" | ShelfStatus | "FAVORITE" | "UPDATED";
 
@@ -386,9 +387,7 @@ export default function BookshelfPage() {
                 )}
                 {!selectMode && entry.novel.latestKnownChapterNo === 0 && (
                   <a
-                    href={isStandalone ? toStandaloneExternalHref(entry.novel.sourceUrl) : entry.novel.sourceUrl}
-                    target={isStandalone ? undefined : "_blank"}
-                    rel={isStandalone ? undefined : "noopener noreferrer"}
+                    {...externalLinkProps(entry.novel.sourceUrl, isStandalone)}
                     aria-label="外部サイトで開く"
                     className="shrink-0 text-muted"
                   >

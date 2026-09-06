@@ -866,11 +866,17 @@ function ReaderPageContent() {
         }`}
       >
         <header className="safe-pt safe-px flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push(routes.novel(novelId))} className="flex items-center gap-1 text-muted">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => router.push(routes.novel(novelId))}
+              className="-my-1 flex items-center gap-1 rounded px-1.5 py-1.5 text-muted"
+            >
               <ChevronLeftIcon className="h-4 w-4" /> 戻る
             </button>
-            <Link href={routes.novel(novelId)} className="text-xs text-muted underline underline-offset-2">
+            <Link
+              href={routes.novel(novelId)}
+              className="-my-1 rounded px-1.5 py-1.5 text-xs text-muted underline underline-offset-2"
+            >
               話一覧
             </Link>
           </div>
@@ -878,17 +884,21 @@ function ReaderPageContent() {
             {currentChapter ? `第${currentChapter.chapterNo}話 / ${chapters.length}話` : ""}
             {fromCache && " ・ オフライン"}
           </span>
-          {/* Aaボタンは話一覧/戻るから最大限離す(誤タップ防止のため、あえて反対端に単独配置)。 */}
-          <div className="flex items-center gap-3">
+          {/* Aaボタンは話一覧/戻るから最大限離す(誤タップ防止のため、あえて反対端に単独配置)。
+              さらに各ボタンのタップ領域を広げて隣との誤タップを減らす。 */}
+          <div className="flex items-center gap-1">
             {shelfEntry && (
-              <button onClick={toggleFavorite} aria-label="お気に入り切替">
+              <button onClick={toggleFavorite} aria-label="お気に入り切替" className="-my-1 rounded p-1.5">
                 <HeartIcon
                   filled={shelfEntry.isFavorite}
                   className={`h-5 w-5 ${shelfEntry.isFavorite ? "text-update" : "text-muted"}`}
                 />
               </button>
             )}
-            <button onClick={() => setShowSettings((v) => !v)} className="font-serif text-base font-bold text-muted">
+            <button
+              onClick={() => setShowSettings((v) => !v)}
+              className="-my-1 rounded px-2 py-1.5 font-serif text-base font-bold text-muted"
+            >
               Aa
             </button>
           </div>

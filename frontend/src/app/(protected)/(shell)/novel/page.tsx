@@ -22,6 +22,8 @@ import { downloadNovelOffline, type DownloadProgress } from "@/lib/offline/downl
 import { getCachedNovelMeta, putCachedNovelMeta } from "@/lib/offline/novelMetaCache";
 import { getCachedShelf } from "@/lib/offline/shelfCache";
 import { routes } from "@/lib/routes";
+import { externalLinkProps } from "@/lib/utils/externalLink";
+import { useIsStandalone } from "@/lib/utils/useIsStandalone";
 
 const STATUS_LABEL: Record<ShelfStatus, string> = {
   READING: "読書中",
@@ -32,6 +34,7 @@ const STATUS_LABEL: Record<ShelfStatus, string> = {
 function NovelDetailContent() {
   const novelId = useSearchParams().get("id") ?? "";
   const router = useRouter();
+  const isStandalone = useIsStandalone();
 
   const [novel, setNovel] = useState<NovelDetail | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -289,9 +292,7 @@ function NovelDetailContent() {
           // continueChapterIdはchapters[0]?.idからも導出されるため、ここに来る時点で
           // chaptersは必ず空(＝アプリ内で読める話が無い)。外部サイトへの導線を表示する。
           <a
-            href={novel.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...externalLinkProps(novel.sourceUrl, isStandalone)}
             className="rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-accent-foreground"
           >
             外部サイトで読む
