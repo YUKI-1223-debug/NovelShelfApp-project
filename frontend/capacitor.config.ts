@@ -8,11 +8,12 @@ const config: CapacitorConfig = {
   appId: "jp.novelshelf.app",
   appName: "NovelShelf",
   webDir: "out",
-  android: {
-    // WebView のオリジンは https://localhost。バックエンドの CORS 許可リストにこれを足す必要がある
-    // （CORS_ALLOWED_ORIGINS、コード変更は不要）。
-    buildOptions: {
-      keystorePath: undefined,
+  plugins: {
+    // API 通信をネイティブ HTTP 層経由にすることで WebView の CORS 制約を回避する。
+    // これによりバックエンドの CORS_ALLOWED_ORIGINS に localhost 系を足さなくてもアプリから
+    // 本番 API を叩ける（fetch / XHR は @capacitor/core がネイティブ実装へパッチする）。
+    CapacitorHttp: {
+      enabled: true,
     },
   },
 };
