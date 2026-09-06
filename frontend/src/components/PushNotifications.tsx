@@ -60,13 +60,17 @@ export function PushNotifications() {
       }
 
       if (isAuthenticated) {
-        const perm = await PushNotifications.checkPermissions();
-        let status = perm.receive;
-        if (status === "prompt" || status === "prompt-with-rationale") {
-          status = (await PushNotifications.requestPermissions()).receive;
-        }
-        if (!cancelled && status === "granted") {
-          await PushNotifications.register();
+        try {
+          const perm = await PushNotifications.checkPermissions();
+          let status = perm.receive;
+          if (status === "prompt" || status === "prompt-with-rationale") {
+            status = (await PushNotifications.requestPermissions()).receive;
+          }
+          if (!cancelled && status === "granted") {
+            await PushNotifications.register();
+          }
+        } catch {
+          // FCM 非対応端末・設定不備でも通知以外の機能は継続動作させる。
         }
       } else {
         // ログアウト: 登録済みトークンを解除
