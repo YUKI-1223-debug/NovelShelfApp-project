@@ -24,9 +24,15 @@
     push プラグインの `register()` を呼ぶと**ネイティブ FATAL でアプリごとクラッシュ**するため
     （実機で確認）、Firebase 設定ファイル配置まではゲートで無効。`build:app` は現状 `false`。
     → ゲート版 release apk を実機再インストール、クラッシュしないことを確認。
-- **残（要ユーザー）**: Firebase プロジェクト作成 → `google-services.json` と
-  サービスアカウント JSON を用意（手順 [FIREBASE_SETUP.md](FIREBASE_SETUP.md)）。
-  受領後: ファイル配置 → `PUSH_ENABLED=true` でビルド → ミニPCに `FIREBASE_CREDENTIALS` を追加してデプロイ。
+- **Firebase 設定受領（2026-09-06）**: project `novelshelf-6520c`。
+  - `google-services.json` → `frontend/android/app/`（gitignore 済み）。push 有効版 release apk を実機に導入、
+    `FirebaseApp initialization successful`・クラッシュ無しを確認。
+  - サービスアカウント JSON → `WorkSpace/NovelShelf-secrets/firebase-service-account.json`（repo 外）。
+    `FirebaseCredentialsLiveTest` で FCM スコープのアクセストークン取得成功＝鍵は有効。
+- **残: ミニPC へデプロイ**（V9 migration + push エンドポイント + `FIREBASE_CREDENTIALS`）。
+  `docker-compose.minipc.yml` は `../secrets` を `/run/secrets`(ro) にマウント済み。
+  手順は [FIREBASE_SETUP.md](FIREBASE_SETUP.md)。デプロイ後: アプリでログイン→通知許可→
+  `POST /api/v1/push/test` で疎通確認、`POST /api/v1/push/run-update-check` で更新通知の確認。
 
 ## モバイルアプリ化 フェーズA: Capacitor 導入・Android プロジェクト（2026-09-06）
 
