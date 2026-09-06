@@ -19,6 +19,8 @@ import {
   type Tag,
 } from "@/lib/api";
 import { downloadNovelOffline, type DownloadProgress } from "@/lib/offline/downloadNovel";
+import { getCachedNovelMeta, putCachedNovelMeta } from "@/lib/offline/novelMetaCache";
+import { getCachedShelf } from "@/lib/offline/shelfCache";
 import { routes } from "@/lib/routes";
 
 const STATUS_LABEL: Record<ShelfStatus, string> = {
@@ -48,37 +50,64 @@ function NovelDetailContent() {
   const [tagInput, setTagInput] = useState("");
   const [savingTag, setSavingTag] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!novelId) {
-      setError("作品が指定されていません。");
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [novelRes, chaptersRes, shelfList] = await Promise.all([
-        novelsApi.detail(novelId),
-        novelsApi.chapters(novelId),
-        shelfApi.list(),
-      ]);
-      setNovel(novelRes);
-      setChapters(chaptersRes);
-      setShelfEntry(shelfList.find((e) => e.novel.id === novelId) ?? null);
-      try {
-        setPosition(await readingApi.getPosition(novelId));
-      } catch {
-        setPosition(null);
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!novelId) {
+        setError("作品が指定されていません。");
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "作品情報の取得に失敗しました。");
-    } finally {
-      setIsLoading(false);
-    }
+      if (!opts?.silent) setIsLoading(true);
+      setError(null);
+      try {
+        const [novelRes, chaptersRes, shelfList] = await Promise.all([
+          novelsApi.detail(novelId),
+          novelsApi.chapters(novelId),
+          shelfApi.list(),
+        ]);
+        setNovel(novelRes);
+        setChapters(chaptersRes);
+        setShelfEntry(shelfList.find((e) => e.novel.id === novelId) ?? null);
+        putCachedNovelMeta(novelId, novelRes, chaptersRes).catch(() => {});
+        try {
+          setPosition(await readingApi.getPosition(novelId));
+        } catch {
+          setPosition(null);
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        }
+        // ネットワーク失敗時、キャッシュ表示済みなら黙って続行する（下の hydrate 参照）。
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [novelId]
+  );
+
+  // まず前回のキャッシュを即表示してから最新を取りに行く（stale-while-revalidate）。
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current || !novelId) return;
+    hydratedRef.current = true;
+    (async () => {
+      const [meta, shelf] = await Promise.all([getCachedNovelMeta(novelId), getCachedShelf()]);
+      if (meta) {
+        setNovel(meta.detail);
+        setChapters(meta.chapters);
+        setIsLoading(false);
+      }
+      if (shelf) {
+        setShelfEntry(shelf.find((e) => e.novel.id === novelId) ?? null);
+      }
+    })().catch(() => {});
   }, [novelId]);
 
   useEffect(() => {
-    queueMicrotask(() => load());
+    queueMicrotask(() => load({ silent: novel !== null }));
+    // load 再実行は novelId 変化時のみ。novel を依存に入れると revalidate ループになる。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
   useEffect(() => {
@@ -188,10 +217,10 @@ function NovelDetailContent() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading && !novel) {
     return <p className="p-6 text-center text-sm text-muted">読み込み中...</p>;
   }
-  if (error || !novel) {
+  if (!novel) {
     return <p className="p-6 text-center text-sm text-update">{error ?? "作品が見つかりません。"}</p>;
   }
 

@@ -76,10 +76,9 @@ export default function BookshelfPage() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isStandalone = useIsStandalone();
 
-  const load = useCallback(async (key: FilterKey, sort: ShelfSortOrder) => {
-    setIsLoading(true);
+  const load = useCallback(async (key: FilterKey, sort: ShelfSortOrder, opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true);
     setError(null);
-    setFromCache(false);
     const sortParam = sort === "RECENT_DESC" ? "recent" : undefined;
     try {
       if (key === "FAVORITE") {
@@ -91,6 +90,7 @@ export default function BookshelfPage() {
       } else {
         setEntries(await shelfApi.list({ status: key, sort: sortParam }));
       }
+      setFromCache(false);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -109,9 +109,28 @@ export default function BookshelfPage() {
     }
   }, []);
 
+  // 画面遷移のたびの「空白→スピナー→数秒待ち」を避けるため、まず前回取得した本棚を
+  // 即座に表示し（stale-while-revalidate）、裏で最新を取りに行く。
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (settingsLoading) return;
-    queueMicrotask(() => load(filter, sortOrder));
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    getCachedShelf()
+      .then((cached) => {
+        if (cached && cached.length > 0) {
+          setEntries(sortCachedEntries(filterCachedEntries(cached, filter), sortOrder));
+          setFromCache(true);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {});
+  }, [filter, sortOrder]);
+
+  useEffect(() => {
+    // 設定の読み込みは待たない（sortOrder は既定でも表示でき、確定後にこの effect が再実行される）。
+    queueMicrotask(() => load(filter, sortOrder, { silent: entries.length > 0 }));
+    // entries を依存に入れると無限ループになるため、初回/フィルタ/ソート変更でのみ再取得する。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, sortOrder, settingsLoading, load]);
 
   useEffect(() => {

@@ -231,36 +231,45 @@ function ReaderPageContent() {
       // URLに?pos=endが付与される（goToのtoEndオプション参照）。この場合は保存済みの読書位置
       // より常にこちらを優先する（ユーザーが明示的に末尾へ戻る操作をしたため）。
       const openAtEnd = new URLSearchParams(window.location.search).get("pos") === "end";
+      // 既定値として0(先頭)を入れておく（縦書きでは開始位置=右端まで明示スクロールが要る）。
+      restoreFractionRef.current = openAtEnd ? 1 : 0;
       if (openAtEnd) {
-        restoreFractionRef.current = 1;
         // ?pos=end だけを取り除く（?novel=/?chapter= は残す必要があるため pathname へ戻さない）。
         const sp = new URLSearchParams(window.location.search);
         sp.delete("pos");
         const qs = sp.toString();
         window.history.replaceState(null, "", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
       } else {
-        // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
-        // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
-        restoreFractionRef.current = 0;
-
-        readingApi
-          .getPosition(novelId)
-          .then((pos) => {
-            if (!cancelled && pos.chapterId === chapterId) {
-              restoreFractionRef.current = pos.scrollPosition / 100;
-            }
-          })
-          .catch(() => {});
+        // 読書位置はレイアウトの復元に必要なので、本文を描画する前に確定させる。
+        try {
+          const pos = await readingApi.getPosition(novelId);
+          if (cancelled) return;
+          if (pos.chapterId === chapterId) {
+            restoreFractionRef.current = pos.scrollPosition / 100;
+          }
+        } catch {
+          /* 位置が取れなければ先頭から */
+        }
       }
 
-      // オフラインキャッシュは「ネットワークが使えない場合のフォールバック」としてのみ使う。
-      // キャッシュを優先すると、サーバー側で本文が更新（誤字修正・不具合修正等）されても
-      // 二度と反映されなくなってしまうため（2026-07-19、ユーザー報告で判明）。
+      // 体感速度のため、キャッシュ済みの話はまず即座に表示する（stale-while-revalidate）。
+      // そのうえで毎回ネットワークからも取得し、サーバー側で本文が更新されていれば差し替える
+      // （キャッシュだけを見ると誤字修正等が反映されなくなる。2026-07-19 のユーザー報告参照）。
+      const cached = await getCachedChapter(chapterId);
+      if (!cancelled && cached) {
+        setTitle(cached.title);
+        setBodyHtml(cached.bodyHtml);
+        setFromCache(true);
+        setIsLoading(false);
+      }
+
       try {
         const content = await novelsApi.content(chapterId);
         if (cancelled) return;
-        setTitle(content.title);
-        setBodyHtml(content.bodyHtml);
+        if (!cached || content.bodyHtml !== cached.bodyHtml || content.title !== cached.title) {
+          setTitle(content.title);
+          setBodyHtml(content.bodyHtml);
+        }
         setFromCache(false);
         const chapterNo = chapters.find((c) => c.id === chapterId)?.chapterNo ?? 0;
         putCachedChapter({
@@ -273,17 +282,13 @@ function ReaderPageContent() {
         }).catch(() => {});
       } catch (err) {
         if (cancelled) return;
-        if (err instanceof ApiError) {
+        if (cached) {
+          // すでにキャッシュを表示済み。オフライン扱いのまま続行する。
+          setFromCache(true);
+        } else if (err instanceof ApiError) {
           setError(err.message);
         } else {
-          const cached = await getCachedChapter(chapterId);
-          if (!cancelled && cached) {
-            setTitle(cached.title);
-            setBodyHtml(cached.bodyHtml);
-            setFromCache(true);
-          } else if (!cancelled) {
-            setError("本文の取得に失敗しました。");
-          }
+          setError("本文の取得に失敗しました。");
         }
       } finally {
         if (!cancelled) setIsLoading(false);
