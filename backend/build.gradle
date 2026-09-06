@@ -76,4 +76,8 @@ tasks.register('externalTest', Test) {
 	if (System.getProperty('hamelnR18NovelId') != null) {
 		systemProperty 'hamelnR18NovelId', System.getProperty('hamelnR18NovelId')
 	}
+	// Firebase サービスアカウントの疎通確認（FirebaseCredentialsLiveTest）用。未指定なら該当テストはスキップ。
+	if (System.getProperty('firebaseCredentials') != null) {
+		systemProperty 'firebaseCredentials', System.getProperty('firebaseCredentials')
+	}
 }
