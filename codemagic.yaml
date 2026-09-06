@@ -1,7 +1,6 @@
 # Codemagic: iOS アプリ（Capacitor）をクラウド Mac でビルドして TestFlight へ配布する。
 # 前提（Codemagic UI 側の設定。詳細は docs/IOS_SETUP.md）:
 #   - App Store Connect API キーを Team integration として登録（名前: "novelshelf-appstore"）
-#   - 環境変数グループ "novelshelf_ios" に APP_STORE_APP_ID（数値のアプリ ID）を設定
 #   - 署名は自動（app-store-connect fetch-signing-files で証明書・プロファイルを取得/作成）
 workflows:
   ios-testflight:
@@ -11,10 +10,9 @@ workflows:
     integrations:
       app_store_connect: novelshelf-appstore
     environment:
-      groups:
-        - novelshelf_ios
       vars:
         BUNDLE_ID: "jp.novelshelf.app"
+        APP_STORE_APP_ID: "6809167553"
         XCODE_PROJECT: "frontend/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
       node: 20

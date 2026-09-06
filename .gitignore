@@ -6,3 +6,7 @@
 # Firebase サービスアカウント等の秘密ファイル（ミニPCデプロイ時にホストへ置く）
 /secrets/
 google-services.json
+
+# App Store Connect API キー
+*.p8
+AuthKey_*
