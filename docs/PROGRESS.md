@@ -29,10 +29,15 @@
     `FirebaseApp initialization successful`・クラッシュ無しを確認。
   - サービスアカウント JSON → `WorkSpace/NovelShelf-secrets/firebase-service-account.json`（repo 外）。
     `FirebaseCredentialsLiveTest` で FCM スコープのアクセストークン取得成功＝鍵は有効。
-- **残: ミニPC へデプロイ**（V9 migration + push エンドポイント + `FIREBASE_CREDENTIALS`）。
-  `docker-compose.minipc.yml` は `../secrets` を `/run/secrets`(ro) にマウント済み。
-  手順は [FIREBASE_SETUP.md](FIREBASE_SETUP.md)。デプロイ後: アプリでログイン→通知許可→
-  `POST /api/v1/push/test` で疎通確認、`POST /api/v1/push/run-update-check` で更新通知の確認。
+- **ミニPC デプロイ完了（2026-09-06、commit `e928f4e`）**:
+  - V9 migration 適用済み、`/api/v1/push/*` エンドポイント稼働（未認証で 401 確認）。
+  - サービスアカウント JSON を `/srv/NovelShelfApp-project/secrets/firebase-service-account.json` に配置
+    （`chmod 644` — コンテナの `appuser` uid=999 が読めるように。600 だと読めず要注意）。
+  - `docker-compose.minipc.yml` が `../secrets:/run/secrets:ro` をマウント、`FIREBASE_CREDENTIALS` 設定済み。
+  - バックエンドログ: `Firebase Cloud Messaging を初期化しました（project=novelshelf-6520c）`。
+    ※初回は `FirebaseOptions` の projectId 自動検出が効かず `project=null` → `setProjectId` 明示指定で修正。
+- **残（要ユーザー）**: スマホアプリでログイン → 通知許可 → トークン登録を確認 →
+  `POST /api/v1/push/test` で自分の端末にテスト通知が届くか。以降は毎日 07/19時 に自動チェック。
 
 ## モバイルアプリ化 フェーズA: Capacitor 導入・Android プロジェクト（2026-09-06）
 
