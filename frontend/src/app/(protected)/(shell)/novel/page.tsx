@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
 import { ChevronLeftIcon, PencilIcon } from "@/components/icons";
 import {
@@ -19,6 +19,7 @@ import {
   type Tag,
 } from "@/lib/api";
 import { downloadNovelOffline, type DownloadProgress } from "@/lib/offline/downloadNovel";
+import { routes } from "@/lib/routes";
 
 const STATUS_LABEL: Record<ShelfStatus, string> = {
   READING: "読書中",
@@ -26,8 +27,8 @@ const STATUS_LABEL: Record<ShelfStatus, string> = {
   READ_LATER: "あとで読む",
 };
 
-export default function NovelDetailPage() {
-  const { novelId } = useParams<{ novelId: string }>();
+function NovelDetailContent() {
+  const novelId = useSearchParams().get("id") ?? "";
   const router = useRouter();
 
   const [novel, setNovel] = useState<NovelDetail | null>(null);
@@ -48,6 +49,11 @@ export default function NovelDetailPage() {
   const [savingTag, setSavingTag] = useState(false);
 
   const load = useCallback(async () => {
+    if (!novelId) {
+      setError("作品が指定されていません。");
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -230,7 +236,7 @@ export default function NovelDetailPage() {
               </button>
             </div>
           )}
-          <Link href={`/authors/${encodeURIComponent(novel.author)}`} className="text-sm text-accent-soft underline underline-offset-2">
+          <Link href={routes.author(novel.author)} className="text-sm text-accent-soft underline underline-offset-2">
             {novel.author}
           </Link>
           <p className="text-xs text-muted">
@@ -245,7 +251,7 @@ export default function NovelDetailPage() {
       <div className="flex flex-col gap-2">
         {continueChapterId ? (
           <Link
-            href={`/novels/${novel.id}/chapters/${continueChapterId}`}
+            href={routes.reader(novel.id, continueChapterId)}
             className="rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-accent-foreground"
           >
             {position ? "続きから読む" : "読み始める"}
@@ -372,7 +378,7 @@ export default function NovelDetailPage() {
               <h3 className="mt-2 truncate px-2 text-xs font-bold text-muted">{c.arcTitle}</h3>
             )}
             <Link
-              href={`/novels/${novel.id}/chapters/${c.id}`}
+              href={routes.reader(novel.id, c.id)}
               className={`flex items-center justify-between rounded-lg px-2 py-2.5 text-sm hover:bg-card ${
                 c.id === position?.chapterId ? "bg-accent-tint text-accent-soft" : ""
               }`}
@@ -385,5 +391,13 @@ export default function NovelDetailPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function NovelDetailPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center text-sm text-muted">読み込み中...</p>}>
+      <NovelDetailContent />
+    </Suspense>
   );
 }

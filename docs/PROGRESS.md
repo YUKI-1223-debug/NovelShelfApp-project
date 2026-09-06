@@ -1,6 +1,57 @@
 # 進捗記録 (PROGRESS)
 
-最終更新: 2026-09-04
+最終更新: 2026-09-06
+
+## モバイルアプリ化 フェーズ0: Next.js 静的エクスポート化（2026-09-06、完了）
+
+[MOBILE_APP_STRATEGY.md](MOBILE_APP_STRATEGY.md) の段階手順に沿って着手。フェーズ0（Web側の準備、
+アプリ着手前に単独で進められる部分）を実施。**バックエンドの変更なし。**
+
+- **動的ルートをクエリパラメータ方式へ移行**（`output: "export"` は動的セグメントに
+  ビルド時 `generateStaticParams` が必須で、実行時に決まる ID を扱えないため）：
+  - `/novels/[novelId]` → `/novel?id=`（`src/app/(protected)/(shell)/novel/page.tsx`）
+  - `/novels/[novelId]/chapters/[chapterId]` → `/reader?novel=&chapter=`（`src/app/(protected)/reader/page.tsx`）
+  - `/authors/[authorName]` → `/author?name=`（`src/app/(protected)/(shell)/author/page.tsx`）
+  - 旧 `[novelId]`/`[authorName]`/`[chapterId]` ディレクトリは削除。
+  - パス生成は `src/lib/routes.ts`（新規）に集約。遷移は必ずこのヘルパー経由。
+  - `useParams` → `useSearchParams`（`<Suspense>` 境界でラップ）。読書画面の `?pos=end` は
+    `novel`/`chapter` クエリを保持したまま `pos` だけ削除するよう `replaceState` を修正。
+  - 呼び出し側更新: 本棚（`(shell)/page.tsx`）・しおり・更新一覧・共有画面・E2E の URL アサーション。
+- **`next.config.ts`**: `NEXT_OUTPUT=export` の時だけ `output: "export"`。未指定は従来どおり `standalone`
+  （現行 Web 本番ビルドは無変更）。`images.unoptimized: true` を追加（next/image 未使用）。
+- **`/api/health` ルートハンドラを削除**（`output: "export"` はルートハンドラ不可）。
+  `docker-compose.yml` の frontend ヘルスチェックを `/api/health` → `/` に変更（standalone/静的どちらでも 200）。
+- **`manifest.ts`** に `export const dynamic = "force-static"` を追加（export 時に必須）。
+- 検証:
+  - `npm run build`（standalone、既定）: 成功。全ルートが `○ (Static)` に。
+  - `NEXT_OUTPUT=export npm run build`: 成功。`out/` に純粋な静的ファイル
+    （`reader.html`/`novel.html`/`author.html`/`manifest.webmanifest` 生成を確認）。
+  - `npm run lint`: クリーン。`npx vitest run`: 14 件全成功。
+  - `out/` をローカル静的配信して主要ページの HTML／Next ランタイム読み込みを確認。
+- 未実施（フェーズ0の残 or 次フェーズ）: Playwright E2E の実行（Docker 必要）、
+  Web 配信を静的化する場合の Dockerfile / Caddy 設定（当面 standalone のままで支障なし）。
+- **次**: フェーズA（Capacitor 導入 → Android で apk ビルド → 実機インストール）。
+
+## モバイルアプリ化の調査（2026-09-06、提案）
+
+Android/iOS へ「インストールして使うアプリ」を追加したいという要望を受け、現行コードを調査して
+[MOBILE_APP_STRATEGY.md](MOBILE_APP_STRATEGY.md) にまとめた。要点：
+
+- **バックエンド・DB は無改修で流用可**（JWT ステートレス、`/api/v1` REST が既にモバイル向き）。フロントも9割流用可。
+- **推奨 = Capacitor**（既存 Next.js フロントをネイティブアプリの殻に入れる）。Flutter/RN は縦書きページャ
+  （`getClientRects()` 実測ベースの自前実装）を作り直す羽目になるため非推奨。
+- Android = Linux のみで apk ビルド〜実機インストール可、費用 ¥0。
+- iOS = ローカル Linux ではビルド不可。Codemagic 等クラウド Mac ビルドで Mac 所有は不要にできるが、
+  **Apple Developer Program $99/年 が実質必須**（無料枠はアプリが7日で失効）。
+- 新規実装が必要なのは実質「サーバープッシュ通知」＋「Next.js 静的エクスポート化（数日）」。
+
+**ユーザー確認済み（2026-09-06）:**
+- 「ログインが必要なサイト」= NovelShelf 自体へのログイン（JWT 実装済み）。外部サイト連携は対象外。
+- iOS: Apple Developer 加入意思あり、ただし最初は無料枠。→ iOS プッシュは $99/年 加入まで不可のため、
+  Android でプッシュまで完成 → iOS は無料枠で下見 → 加入で iOS 開通、の段階構成に。
+- 通知はサーバープッシュ採用（ミニPC で更新検知 → FCM/APNs）。Firebase Admin SDK + `@Scheduled` +
+  デバイストークン表（`V9`）+ 通知ON/OFF設定（`V10`）を新規実装。詳細は MOBILE_APP_STRATEGY.md §5.3。
+- 未着手。着手する場合はフェーズ0（Next.js 静的エクスポート化）から。
 
 ## 現在の進捗
 

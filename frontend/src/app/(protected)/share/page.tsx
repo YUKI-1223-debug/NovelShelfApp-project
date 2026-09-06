@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ApiError, novelsApi, shelfApi, type NovelDetail } from "@/lib/api";
+import { routes } from "@/lib/routes";
 
 type Result = { status: "loading" } | { status: "success"; novel: NovelDetail } | { status: "error"; message: string };
 
@@ -65,7 +66,7 @@ function SharePageContent() {
           </p>
           <div className="flex flex-col gap-2">
             <Link
-              href={`/novels/${result.novel.id}`}
+              href={routes.novel(result.novel.id)}
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
             >
               作品を見る

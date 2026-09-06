@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BookCover } from "@/components/BookCover";
 import { ApiError, updatesApi, type Novel } from "@/lib/api";
+import { routes } from "@/lib/routes";
 
 export default function UpdatesPage() {
   const [novels, setNovels] = useState<Novel[]>([]);
@@ -68,7 +69,7 @@ export default function UpdatesPage() {
           {novels.map((novel) => (
             <Link
               key={novel.id}
-              href={`/novels/${novel.id}`}
+              href={routes.novel(novel.id)}
               className="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5"
             >
               <BookCover novelId={novel.id} title={novel.title} className="w-14 shrink-0" />

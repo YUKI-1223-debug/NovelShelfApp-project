@@ -54,6 +54,22 @@
 
 ## 次に行うこと（優先順位順）
 
+### ★モバイルアプリ化（Android/iOS）— 進行中（2026-09-06〜）
+
+方針・全体設計は [MOBILE_APP_STRATEGY.md](MOBILE_APP_STRATEGY.md)。Capacitor で既存 Next.js フロントを
+ネイティブアプリ化する。バックエンドは無改修（プッシュ通知の追加を除く）。工程確認は不要、都度 PROGRESS へ記録。
+
+- **フェーズ0（Next.js 静的エクスポート化）— ✅ 完了**（2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。
+  動的ルートを `/novel?id=` `/reader?novel=&chapter=` `/author?name=` に移行、`NEXT_OUTPUT=export` で
+  `out/` 生成を確認。Web の standalone ビルドは無変更。
+- **フェーズA（次）**: Capacitor 導入 → `npx cap add android` → 署名鍵 → apk ビルド → 実機インストール →
+  Android サーバープッシュ（`V9` トークン表 + `POST/DELETE /push/devices` + `@Scheduled` 更新検知 +
+  Firebase Admin SDK）→ 通知 ON/OFF 設定（`V10`）。Firebase プロジェクト（無料）作成が要る。
+- **フェーズB**: iOS を無料 Apple ID + クラウド Mac ビルド（Codemagic）で実機確認（プッシュ以外）。
+- **フェーズC**: Apple Developer $99/年 加入 → iOS プッシュ開通 + TestFlight。
+- 開発環境（着手時にユーザーへ導入依頼）: JDK 17 / Android Studio（or cmdline-tools）。
+
+
 ### ミニPC移設まわり — カットオーバー完了（2026-09-04）
 
 - **M0. `docker/docker-compose.minipc.yml` 作成** — ✅ 完了（commit `b562751`）。

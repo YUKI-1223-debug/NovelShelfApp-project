@@ -15,6 +15,7 @@ import {
   type ShelfStatus,
 } from "@/lib/api";
 import { getCachedShelf, putCachedShelf } from "@/lib/offline/shelfCache";
+import { routes } from "@/lib/routes";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { toStandaloneExternalHref, useIsStandalone } from "@/lib/utils/useIsStandalone";
 
@@ -360,7 +361,7 @@ export default function BookshelfPage() {
                     <span className="min-w-0 flex-1">{rowBody}</span>
                   </button>
                 ) : (
-                  <Link href={`/novels/${entry.novel.id}`} className="min-w-0 flex-1">
+                  <Link href={routes.novel(entry.novel.id)} className="min-w-0 flex-1">
                     {rowBody}
                   </Link>
                 )}

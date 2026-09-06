@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
 import { ChevronLeftIcon } from "@/components/icons";
 import { ApiError, novelsApi, shelfApi, type BookshelfEntry, type Novel } from "@/lib/api";
+import { routes } from "@/lib/routes";
 
-export default function AuthorPage() {
-  const { authorName } = useParams<{ authorName: string }>();
+function AuthorPageContent() {
+  const authorName = useSearchParams().get("name") ?? "";
   const router = useRouter();
-  const decodedName = decodeURIComponent(authorName);
+  const decodedName = authorName;
 
   const [novels, setNovels] = useState<Novel[]>([]);
   const [shelfEntries, setShelfEntries] = useState<BookshelfEntry[]>([]);
@@ -19,6 +20,10 @@ export default function AuthorPage() {
 
   useEffect(() => {
     queueMicrotask(() => {
+      if (!decodedName) {
+        setIsLoading(false);
+        return;
+      }
       Promise.all([novelsApi.search({ q: decodedName }), shelfApi.list()])
         .then(([foundNovels, entries]) => {
           setNovels(foundNovels.filter((n) => n.author === decodedName));
@@ -68,12 +73,20 @@ export default function AuthorPage() {
 
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {novels.map((novel) => (
-          <Link key={novel.id} href={`/novels/${novel.id}`} className="flex flex-col gap-1.5">
+          <Link key={novel.id} href={routes.novel(novel.id)} className="flex flex-col gap-1.5">
             <BookCover novelId={novel.id} title={novel.title} className="w-full" />
             <p className="line-clamp-2 text-xs font-semibold leading-tight">{novel.title}</p>
           </Link>
         ))}
       </div>
     </div>
+  );
+}
+
+export default function AuthorPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center text-sm text-muted">読み込み中...</p>}>
+      <AuthorPageContent />
+    </Suspense>
   );
 }

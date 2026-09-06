@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// output: "export"（Capacitor 用の静的エクスポート）では metadata ルートも静的生成を明示する必要がある。
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "NovelShelf",

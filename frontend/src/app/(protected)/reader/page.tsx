@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
 import { ChevronLeftIcon, ChevronRightIcon, HeartIcon } from "@/components/icons";
 import { ApiError, novelsApi, readingApi, shelfApi } from "@/lib/api";
@@ -10,6 +10,7 @@ import type { BookshelfEntry, Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
 import { queuePendingPosition } from "@/lib/offline/positionQueue";
+import { routes } from "@/lib/routes";
 
 const MARGIN_PADDING: Record<string, string> = {
   SMALL: "px-3",
@@ -116,8 +117,10 @@ function computeVerticalPageBoundaries(lines: LineExtent[], viewportWidth: numbe
   return boundaries;
 }
 
-export default function ReaderPage() {
-  const { novelId, chapterId } = useParams<{ novelId: string; chapterId: string }>();
+function ReaderPageContent() {
+  const searchParams = useSearchParams();
+  const novelId = searchParams.get("novel") ?? "";
+  const chapterId = searchParams.get("chapter") ?? "";
   const router = useRouter();
   const { settings, update } = useSettings();
 
@@ -177,11 +180,13 @@ export default function ReaderPage() {
   const nextChapter = currentIndex >= 0 && currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : undefined;
 
   useEffect(() => {
+    if (!novelId) return;
     novelsApi.chapters(novelId).then(setChapters).catch(() => {});
   }, [novelId]);
 
   const [shelfEntry, setShelfEntry] = useState<BookshelfEntry | null>(null);
   useEffect(() => {
+    if (!novelId) return;
     shelfApi
       .list()
       .then((list) => setShelfEntry(list.find((e) => e.novel.id === novelId) ?? null))
@@ -206,6 +211,7 @@ export default function ReaderPage() {
     (async () => {
       await Promise.resolve();
       if (cancelled) return;
+      if (!chapterId || !novelId) return;
       setIsLoading(true);
       setError(null);
       // 話が切り替わったら、イマーシブ表示を毎回既定の非表示状態からやり直す。
@@ -227,7 +233,11 @@ export default function ReaderPage() {
       const openAtEnd = new URLSearchParams(window.location.search).get("pos") === "end";
       if (openAtEnd) {
         restoreFractionRef.current = 1;
-        window.history.replaceState(null, "", window.location.pathname);
+        // ?pos=end だけを取り除く（?novel=/?chapter= は残す必要があるため pathname へ戻さない）。
+        const sp = new URLSearchParams(window.location.search);
+        sp.delete("pos");
+        const qs = sp.toString();
+        window.history.replaceState(null, "", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
       } else {
         // 保存済みの読書位置がない(＝初めて開く話)場合も、縦書きでは開始位置(右端)まで
         // 明示的にスクロールする必要があるため、既定値として0(先頭)を入れておく。
@@ -549,8 +559,7 @@ export default function ReaderPage() {
     (chapter: Chapter | undefined, options?: { toEnd?: boolean }) => {
       if (!chapter) return;
       saveProgress();
-      const suffix = options?.toEnd ? "?pos=end" : "";
-      router.push(`/novels/${novelId}/chapters/${chapter.id}${suffix}`);
+      router.push(routes.reader(novelId, chapter.id) + (options?.toEnd ? "&pos=end" : ""));
     },
     [saveProgress, router, novelId]
   );
@@ -851,10 +860,10 @@ export default function ReaderPage() {
       >
         <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push(`/novels/${novelId}`)} className="flex items-center gap-1 text-muted">
+            <button onClick={() => router.push(routes.novel(novelId))} className="flex items-center gap-1 text-muted">
               <ChevronLeftIcon className="h-4 w-4" /> 戻る
             </button>
-            <Link href={`/novels/${novelId}`} className="text-xs text-muted underline underline-offset-2">
+            <Link href={routes.novel(novelId)} className="text-xs text-muted underline underline-offset-2">
               話一覧
             </Link>
           </div>
@@ -962,5 +971,13 @@ export default function ReaderPage() {
         onAdded={() => setShowSettings(false)}
       />
     </div>
+  );
+}
+
+export default function ReaderPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-center text-sm text-muted">読み込み中...</p>}>
+      <ReaderPageContent />
+    </Suspense>
   );
 }

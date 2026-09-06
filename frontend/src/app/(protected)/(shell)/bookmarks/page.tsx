@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TrashIcon } from "@/components/icons";
 import { ApiError, bookmarksApi, type Bookmark } from "@/lib/api";
+import { routes } from "@/lib/routes";
 
 export default function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -43,7 +44,7 @@ export default function BookmarksPage() {
             <div key={b.id} className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-start justify-between gap-2">
                 <Link
-                  href={b.novelId ? `/novels/${b.novelId}/chapters/${b.chapterId}` : "#"}
+                  href={b.novelId ? routes.reader(b.novelId, b.chapterId) : "#"}
                   className="min-w-0 flex-1"
                 >
                   <p className="text-sm font-bold">{b.name}</p>

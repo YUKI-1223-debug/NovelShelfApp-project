@@ -44,7 +44,7 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
 
     await page.getByRole("link", { name: "読み始める" }).click();
 
-    await expect(page).toHaveURL(/\/chapters\//);
+    await expect(page).toHaveURL(/\/reader\?/);
     // 総話数は実際のなろう側で作者が更新すると変わりうる（実際に運用中2026-07→2026-08で15→46話に
     // 増えたことが判明）ため、総数は固定せず「第1話であること」だけを検証する。
     await expect(page.getByText(/第1話 \/ \d+話/)).toBeVisible({ timeout: 15_000 });
@@ -93,12 +93,12 @@ test("主要な利用導線: サインアップ→作品追加→読書→しお
     await expect(page.getByText(NOVEL_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByText(NOVEL_TITLE).first().click();
-    await expect(page).toHaveURL(/\/novels\//);
+    await expect(page).toHaveURL(/\/novel\?/);
   });
 
   await test.step("作者ページに遷移し、作品数・読了数が表示される", async () => {
     await page.getByRole("link", { name: "奥州寛" }).click();
-    await expect(page).toHaveURL(/\/authors\//);
+    await expect(page).toHaveURL(/\/author\?/);
     await expect(page.getByRole("heading", { name: "奥州寛" })).toBeVisible();
     await expect(page.getByText("全作品")).toBeVisible();
     await expect(page.getByText("お気に入り")).toBeVisible();
