@@ -2,3 +2,7 @@
 .DS_Store
 *.pem
 *.key
+
+# Firebase サービスアカウント等の秘密ファイル（ミニPCデプロイ時にホストへ置く）
+/secrets/
+google-services.json

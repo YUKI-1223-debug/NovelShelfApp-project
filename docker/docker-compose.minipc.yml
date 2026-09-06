@@ -28,6 +28,14 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx768m"
       # パスワード再設定メールのリンク生成に使う。本番ドメインから自動導出する
       FRONTEND_BASE_URL: https://${DOMAIN}
+      # プッシュ通知(FCM)。下の secrets ディレクトリマウントに合わせた固定パス。
+      # ファイルが無ければバックエンドは「未設定」として扱い、送信せずログのみ（起動はできる）。
+      FIREBASE_CREDENTIALS: /run/secrets/firebase-service-account.json
+    volumes:
+      # ミニPCの /srv/NovelShelfApp-project/secrets/ を read-only でマウント。
+      # 事前に `mkdir -p secrets` し、Firebase のサービスアカウント JSON を
+      # secrets/firebase-service-account.json として置く（docs/FIREBASE_SETUP.md）。
+      - ../secrets:/run/secrets:ro
     networks:
       default: {}
       edge:

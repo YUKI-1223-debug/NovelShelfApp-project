@@ -34,15 +34,35 @@
   Firebase の「Cloud Messaging」→ Apple アプリの構成 に登録する。
 - Android には不要。
 
-## 配置後（こちら側の作業）
+## 配置状況（アプリ側）— 完了
 
-- `google-services.json` を `frontend/android/app/` に置く（`.gitignore` 追加）。
-- `frontend/package.json` の `build:app` を `NEXT_PUBLIC_PUSH_ENABLED=true` に変更。
-- `npm run sync:android` → `assembleRelease` → 実機インストール。
-- サービスアカウント JSON をミニPCに置き、`docker-compose.minipc.yml` でコンテナにマウント、
-  `.env` に `FIREBASE_CREDENTIALS=<コンテナ内パス>` を追加してバックエンド再デプロイ。
-- 動作確認: アプリで通知を許可 → `POST /api/v1/push/test` で自分の端末に届くか、
-  `POST /api/v1/push/run-update-check` で更新検知→通知が動くか。
+- `frontend/android/app/google-services.json` 配置済み（project `novelshelf-6520c`、`.gitignore` 済み）。
+- `build:app` は `NEXT_PUBLIC_PUSH_ENABLED=true`。push 有効版 release apk をビルド・実機インストール済み。
+
+## バックエンド側（ミニPC デプロイ手順）
+
+サービスアカウント JSON を受領後、ミニPC で:
+
+```bash
+cd /srv/NovelShelfApp-project
+git pull
+mkdir -p secrets
+# サービスアカウント JSON を secrets/firebase-service-account.json として配置（scp 等）
+cd docker
+docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml up -d --build
+```
+
+- `docker-compose.minipc.yml` が `../secrets/` を `/run/secrets/`（ro）にマウント、
+  `FIREBASE_CREDENTIALS=/run/secrets/firebase-service-account.json` を設定済み。
+- ファイルが無くてもバックエンドは起動する（「未設定」扱い＝送信せずログのみ）。
+- 起動ログに `Firebase Cloud Messaging を初期化しました（project=novelshelf-6520c）` が出れば有効。
+
+## 動作確認
+
+1. アプリでログイン → 通知の許可ダイアログで許可（トークンが `POST /api/v1/push/devices` で登録される）
+2. `POST /api/v1/push/test`（要ログイン）→ 自分の端末に「テスト通知です」が届くか
+3. `POST /api/v1/push/run-update-check` → 本棚作品を再取得し、更新があれば通知（時間がかかる）
+4. 以降は毎日 07:00 / 19:00（JST）に自動実行
 
 ## 費用
 
