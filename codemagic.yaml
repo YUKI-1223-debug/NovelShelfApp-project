@@ -50,6 +50,8 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
+        # TestFlight へアップロード + Apple の処理完了まで待つ。
+        # 内部テストグループ「自分用」への配信はグループ側の「自動配信ON」に任せる。
+        # （codemagic.yaml の beta_groups は外部グループ専用。内部グループを指定すると
+        #  "Cannot add internal group to a build" で post-processing が失敗する）
         submit_to_testflight: true
-        beta_groups:
-          - "自分用"
