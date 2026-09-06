@@ -61,7 +61,10 @@ class FirebaseCredentialsLiveTest {
 
         String token = System.getProperty("fcmToken", "MOCK_TOKEN_FOR_VALIDATION_ONLY");
         String body = """
-            {"message":{"token":"%s","notification":{"title":"NovelShelf","body":"疎通確認"},"data":{"type":"test"}}}
+            {"message":{"token":"%s",\
+            "notification":{"title":"NovelShelf","body":"疎通確認"},\
+            "android":{"priority":"high","notification":{"channel_id":"novelshelf-updates","default_sound":true}},\
+            "data":{"type":"test"}}}
             """.formatted(token);
 
         HttpRequest request = HttpRequest.newBuilder()
