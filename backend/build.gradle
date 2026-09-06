@@ -38,8 +38,9 @@ dependencies {
 
 	implementation 'org.jsoup:jsoup:1.22.2'
 
-	// プッシュ通知（FCM 経由。iOS は APNs 中継）。サービスアカウント JSON 未設定時は送信せずログのみ。
-	implementation 'com.google.firebase:firebase-admin:9.5.0'
+	// プッシュ通知: FCM HTTP v1 API を直接呼ぶ。firebase-admin SDK は grpc/netty 等で重く
+	// google-http-client の GZIP 処理バグにも当たるため使わない。必要なのはトークン発行だけ。
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.33.1'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -79,5 +80,8 @@ tasks.register('externalTest', Test) {
 	// Firebase サービスアカウントの疎通確認（FirebaseCredentialsLiveTest）用。未指定なら該当テストはスキップ。
 	if (System.getProperty('firebaseCredentials') != null) {
 		systemProperty 'firebaseCredentials', System.getProperty('firebaseCredentials')
+	}
+	if (System.getProperty('fcmToken') != null) {
+		systemProperty 'fcmToken', System.getProperty('fcmToken')
 	}
 }

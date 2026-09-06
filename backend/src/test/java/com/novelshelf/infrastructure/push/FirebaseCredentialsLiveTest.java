@@ -6,12 +6,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.FirebaseMessagingException;
-import com.google.firebase.messaging.Message;
 import java.io.FileInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -19,12 +18,15 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Firebase サービスアカウント JSON が本物で、認証 + プロジェクト解決 + FCM 送信経路が通るかを確認する。
+ * Firebase サービスアカウント JSON が本物で、FCM HTTP v1 に認証付きで到達できるかを確認する。
  * {@code -DfirebaseCredentials=<path>} 指定時のみ実行（通常の test タスクからは除外）。
+ * 実トークンへ本当に送りたい場合は {@code -DfcmToken=<token>} も渡す。
  * 実行例: {@code ./gradlew externalTest -DfirebaseCredentials=/path/to/sa.json}
  */
 @Tag("external")
 class FirebaseCredentialsLiveTest {
+
+    private static final String FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
     private static String credentialsPath() {
         String path = System.getProperty("firebaseCredentials");
@@ -32,49 +34,49 @@ class FirebaseCredentialsLiveTest {
         return path;
     }
 
+    private static ServiceAccountCredentials load() throws Exception {
+        try (FileInputStream in = new FileInputStream(credentialsPath())) {
+            return (ServiceAccountCredentials)
+                    GoogleCredentials.fromStream(in).createScoped(List.of(FCM_SCOPE));
+        }
+    }
+
     @Test
     void serviceAccount_mintsAccessTokenForFcmScope() throws Exception {
-        GoogleCredentials credentials;
-        try (FileInputStream in = new FileInputStream(credentialsPath())) {
-            credentials = GoogleCredentials.fromStream(in)
-                    .createScoped(List.of("https://www.googleapis.com/auth/firebase.messaging"));
-        }
+        ServiceAccountCredentials credentials = load();
         credentials.refreshIfExpired();
         AccessToken token = credentials.getAccessToken();
 
         assertThat(token).isNotNull();
         assertThat(token.getTokenValue()).isNotBlank();
+        assertThat(credentials.getProjectId()).isNotBlank();
     }
 
     @Test
-    void firebaseMessaging_resolvesProjectAndReachesFcm() throws Exception {
-        GoogleCredentials credentials;
-        try (FileInputStream in = new FileInputStream(credentialsPath())) {
-            credentials = GoogleCredentials.fromStream(in);
-        }
-        FirebaseOptions.Builder builder = FirebaseOptions.builder().setCredentials(credentials);
-        if (credentials instanceof ServiceAccountCredentials sa && sa.getProjectId() != null) {
-            builder.setProjectId(sa.getProjectId());
-        }
-        FirebaseApp app = FirebaseApp.getApps().stream()
-                .filter(a -> "live-test".equals(a.getName()))
-                .findFirst()
-                .orElseGet(() -> FirebaseApp.initializeApp(builder.build(), "live-test"));
+    void fcmV1_acceptsAuthenticatedRequest() throws Exception {
+        ServiceAccountCredentials credentials = load();
+        credentials.refresh();
+        String bearer = credentials.getAccessToken().getTokenValue();
+        String projectId = credentials.getProjectId();
 
-        assertThat(app.getOptions().getProjectId()).as("プロジェクトIDが解決されていること").isNotBlank();
+        String token = System.getProperty("fcmToken", "MOCK_TOKEN_FOR_VALIDATION_ONLY");
+        String body = """
+            {"message":{"token":"%s","notification":{"title":"NovelShelf","body":"疎通確認"},"data":{"type":"test"}}}
+            """.formatted(token);
 
-        // それらしい形（が実在しない）トークンへ dry-run 送信。認証・プロジェクト解決が済んでいれば
-        // FCM まで到達し「トークンが不正/未登録」で失敗する。プロジェクト未解決なら送信前に落ちる。
-        Message message = Message.builder()
-                .setToken("fMOCK:APA91b" + "x".repeat(120))
-                .putData("type", "credentials-check")
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://fcm.googleapis.com/v1/projects/" + projectId + "/messages:send"))
+                .header("Authorization", "Bearer " + bearer)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
-        try {
-            FirebaseMessaging.getInstance(app).send(message, true);
-        } catch (FirebaseMessagingException e) {
-            assertThat(e.getMessage())
-                    .as("FCM に到達し、トークン起因で失敗するはず。実際: %s", e.getMessage())
-                    .containsAnyOf("400", "404", "registration", "not a valid FCM", "INVALID_ARGUMENT", "UNREGISTERED");
-        }
+
+        HttpResponse<String> res = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+        // 実トークン未指定なら「トークンが不正」で 400/404（＝認証は通っている）。
+        // 実トークン指定なら 200（実際に通知が飛ぶ）。401/403 は認証・権限の問題。
+        assertThat(res.statusCode())
+                .as("認証は通るはず。実際: %d / %s", res.statusCode(), res.body())
+                .isIn(200, 400, 404);
     }
 }
