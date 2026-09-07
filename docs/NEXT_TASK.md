@@ -68,7 +68,7 @@
 両方で本体機能 + セーフエリア + サーバープッシュ通知が実機動作確認済み。以降は通常の機能追加時に
 `npm run sync:android` で apk 再ビルド / Codemagic で iOS 再ビルド（毎週月曜の定期ビルドあり）。
 
-polish 残（急がない）: iOS スプラッシュ画面が Capacitor デフォルト。通知 ON/OFF のアプリ内設定（`V10`）は任意。
+polish 残（急がない）: iOS/Android のスプラッシュ画面が Capacitor デフォルト。通知 ON/OFF のアプリ内設定（`V10`）は任意。
 
 - **フェーズ0（Next.js 静的エクスポート化）— ✅ 完了**（2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。
   動的ルートを `/novel?id=` `/reader?novel=&chapter=` `/author?name=` に移行、`NEXT_OUTPUT=export` で
@@ -96,8 +96,9 @@ polish 残（急がない）: iOS スプラッシュ画面が Capacitor デフ�
     いた（`ScreenShot/DSC_0231.JPG`）→ commit `6ec89da` で `.safe-inset-0`/margin 版に再修正
     → ビルド `f483c264` で解消を確認。Web 本番へもデプロイ済み。
   - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。→ フェーズC。
-  - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `7347191`。`frontend/public/icons/icon-512.png`
-    ベースの紺色の本アイコン。`AppIcon-512@2x.png` を 1024px 不透明 PNG に差し替え）。
+  - **アプリアイコン = ✅ 設定済み（iOS/Android 両方、2026-09-07）**。`frontend/public/icons/` の
+    紺色（`#2B3A55`）の本アイコンから生成。iOS = `AppIcon-512@2x.png` を 1024px 不透明 PNG（commit `7347191`）。
+    Android = mipmap 全密度の `ic_launcher`/`ic_launcher_round`/`ic_launcher_foreground` + 背景色（versionCode 5）。
 - **フェーズC（iOS プッシュ）— ✅ 完了（2026-09-07）**。詳細は [PROGRESS.md](PROGRESS.md) / [IOS_SETUP.md](IOS_SETUP.md)。
   - APNs 認証キー（Key ID `FZ3Z9S2384`）/ Firebase に iOS アプリ追加 / Firebase に APNs キー登録 / App ID に
     Push capability / App Store プロファイル作り直し（`aps-environment=production`）/ Codemagic 環境変数

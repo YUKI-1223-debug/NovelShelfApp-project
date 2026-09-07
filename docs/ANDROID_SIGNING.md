@@ -35,8 +35,8 @@ cd android
 中身は 1 行 `sdk.dir=C:/Users/yuuki/AppData/Local/Android/Sdk`（**フォワードスラッシュ**で書く。
 バックスラッシュはエスケープが要りハマる）。
 
-現在の配布版: **versionCode 4 / versionName 1.0.3**（2026-09-07、設定「テスト通知を送る」を
-iOS でも表示。プッシュ通知プラグイン `@capacitor-firebase/messaging`・セーフエリア修正 `6ec89da` 込み）。
+現在の配布版: **versionCode 5 / versionName 1.0.4**（2026-09-07、ランチャーアイコンを
+NovelShelf の本アイコンに。テスト通知の iOS 表示・`@capacitor-firebase/messaging`・セーフエリア修正込み）。
 再ビルドのたびに `build.gradle` の `versionCode` を +1 する。
 
 ## 実機インストール
