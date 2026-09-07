@@ -31,9 +31,10 @@ Android プッシュが実機で動いたので iOS プッシュへ。全体の�
   - Android: `cap sync` でプラグイン差し替え、**release ビルド成功をローカル確認**。versionCode 3 / `1.0.2`。
   - `codemagic.yaml`: `firebase` 変数グループ + plist 復元ステップ追加。
   - frontend: tsc / lint / `build:app` / Android release build すべて成功。
-- **⑤ 実機確認 = 未**:
-  - Android: v1.0.2 apk をユーザー実機へ → 設定「テスト通知を送る」で通知が出るか（プラグイン載せ替えの回帰確認）。
-  - iOS: **要ユーザー先行**（下記）→ Codemagic ビルド → TestFlight → 実機で通知確認。
+- **⑤ 実機確認**:
+  - Android = ✅ **OK**（2026-09-07、v1.0.2 / versionCode 3 を Xperia 10 VI へ。プラグイン
+    `@capacitor-firebase/messaging` 載せ替え後もテスト通知が正常に届くことを確認）。
+  - iOS = 未。**要ユーザー先行**（下記）→ Codemagic ビルド → TestFlight → 実機で通知確認。
 - **⑤-前提（要ユーザー、iOS）**:
   1. Apple Developer → Identifiers → `jp.novelshelf.app` → **Push Notifications** にチェック → Save
   2. Profiles → `NovelShelf App Store` を Edit → 証明書 `novelshelf-dist` → Save → Download →
