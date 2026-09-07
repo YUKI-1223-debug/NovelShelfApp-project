@@ -79,6 +79,9 @@
   **TestFlight 配信まで到達、ユーザーの iPhone にインストール済み**。詳細な経緯は [PROGRESS.md](PROGRESS.md) 冒頭。
   - **定期ビルド設定済み**: Codemagic Scheduled builds で毎週月曜 01:00 UTC に自動ビルド
     （TestFlight ビルドの90日期限対策）。
+  - 2026-09-07: `submit_to_testflight: true` を削除（外部ベータ審査へ提出しようとして
+    test-info 未入力で失敗していた。内部テストは処理完了後に自動配信されるので不要）。
+    外部テスト開始時に test-info 入力 + `submit_to_testflight`/`beta_groups` を戻す。
   - **残（要ユーザー、次回セッション頭）**: 最新ビルド（読書画面セーフエリア再修正
     〈`.safe-inset-0`/margin 版〉+ 外部ブラウザ `4b12943` + 本棚セーフエリア `b30f765` 込み）を
     実機で確認: セーフエリア（縦/横・スクロール/ページ送り・縦書き/横書き）・作品追加で

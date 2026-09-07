@@ -22,6 +22,21 @@ iOS 実機（TestFlight）で読書画面の本文がまだステータスバー
 - frontend: lint / tsc / `build:app`（静的エクスポート）成功。
 - **要ユーザー**: TestFlight 次ビルドで実機確認（縦/横、スクロール/ページ送り、縦書き/横書き）。
 
+### Codemagic の TestFlight post-processing 失敗（2026-09-07）
+
+ビルド `f483c264` は App Store Connect へのアップロード・処理完了までは成功したが、
+`submit_to_testflight: true` が**外部テストのベータ審査へ提出**まで実行しようとして失敗:
+`App is missing required Beta App Information: Feedback Email` /
+`Beta App Review Information: First Name, Last Name, Phone Number, Email`。
+
+- 内部テスト（App Store Connect のユーザーを入れた Internal Testing グループ）は
+  処理完了後に**自動配信**され、ベータ審査は不要。アップロード済みビルドはそのまま
+  内部テスターに配信される（＝この失敗は配信自体には影響しない）。
+- 対処: `codemagic.yaml` の `publishing.app_store_connect.submit_to_testflight: true` を削除
+  （commit 予定）。以後は「アップロードのみ」＝内部テストへ自動配信。
+- 外部テストを始めるときは App Store Connect の
+  `apps/6809167553/testflight/test-info` を埋めてから `submit_to_testflight` + `beta_groups` を戻す。
+
 ## モバイルアプリ化 iOS: Codemagic 初回ビルド・署名整備（2026-09-06）
 
 ユーザーが Codemagic UI 設定 → 初回ビルドを実行。詰まった箇所と対処を記録:

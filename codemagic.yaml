@@ -50,8 +50,13 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # TestFlight へアップロード + Apple の処理完了まで待つ。
-        # 内部テストグループ「自分用」への配信はグループ側の「自動配信ON」に任せる。
-        # （codemagic.yaml の beta_groups は外部グループ専用。内部グループを指定すると
-        #  "Cannot add internal group to a build" で post-processing が失敗する）
-        submit_to_testflight: true
+        # TestFlight へアップロード + Apple の処理完了まで待つ。内部テスト
+        # （App Store Connect のユーザーを追加した Internal Testing グループ）は
+        # 処理完了後に自動で配信されるため、これ以上の指定は不要。
+        #
+        # submit_to_testflight は付けない: 付けると「外部テストのベータ審査へ提出」
+        # までやろうとし、Beta App Information（フィードバックEmail）と Beta App Review
+        # Information（氏名・電話・Email）が未入力だと post-processing が失敗する
+        # （2026-09-07 に発生）。内部テストしかしないので外部審査は不要。
+        # 外部テストを始めるときは App Store Connect の test-info を埋めてから
+        # submit_to_testflight: true + beta_groups を追加する。
