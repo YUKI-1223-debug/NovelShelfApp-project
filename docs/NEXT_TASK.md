@@ -67,21 +67,16 @@
 - **フェーズ0（Next.js 静的エクスポート化）— ✅ 完了**（2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。
   動的ルートを `/novel?id=` `/reader?novel=&chapter=` `/author?name=` に移行、`NEXT_OUTPUT=export` で
   `out/` 生成を確認。Web の standalone ビルドは無変更。
-- **フェーズA（進行中）**: Capacitor 8 導入・`frontend/android` 生成・**デバッグ apk ビルド成功**まで完了
-  （2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。残り:
-  - ユーザーの Android 実機へインストールして動作確認（**要ユーザー: 実機接続 or apk 転送**）
-  - ~~本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` 追加~~ → **不要**。直後の commit
-    `CapacitorHttp を有効化`（2026-09-06 18:11）で fetch/XHR がネイティブ HTTP 層を通るため
-    WebView の CORS 制約を受けない（`capacitor.config.ts` のコメント参照）。SSE 等 CORS が
-    絡む別経路も未使用。実機確認で本番 API 疎通に問題が出たときだけ再検討。
-  - ~~リリース署名鍵（keystore）作成 → release apk~~ ✅ 完了（[ANDROID_SIGNING.md](ANDROID_SIGNING.md)）
-  - ~~サーバープッシュ通知のコード実装~~ ✅ 完了（バックエンド + フロント、既定は無効）。
-    **残: ユーザーが Firebase プロジェクト作成 → `google-services.json` +
-    サービスアカウント JSON を用意**（手順 [FIREBASE_SETUP.md](FIREBASE_SETUP.md)）。
-    受領後こちらで: ファイル配置 → `NEXT_PUBLIC_PUSH_ENABLED=true` でビルド →
-    ミニPCに `FIREBASE_CREDENTIALS` 追加してデプロイ → 実機で通知確認。
+- **フェーズA（Android）— ✅ 実質完了**（2026-09-06〜07）:
+  - Capacitor 8 導入・`frontend/android` 生成・release apk（署名鍵は [ANDROID_SIGNING.md](ANDROID_SIGNING.md)）。
+  - `CORS_ALLOWED_ORIGINS` 追加は**不要**（`CapacitorHttp` 有効化で fetch/XHR がネイティブ HTTP を通る。
+    SSE 等の別経路も未使用）。
+  - **サーバープッシュ通知 = ✅ 動作確認済み**（2026-09-07 朝、ユーザーの実機に自動チェックの通知が
+    実際に届いた）。Firebase project `novelshelf-6520c`、FCM HTTP v1 直接呼び出し、ミニPCデプロイ済み、
+    毎日 07/19 時に更新検知 → 通知。詳細は [PROGRESS.md](PROGRESS.md)「フェーズA: サーバープッシュ通知」。
+  - 残: ユーザーが release apk を実機にインストールして一通り動作確認（手順は下記メモ / 次項）。
   - 通知 ON/OFF のアプリ内設定（`V10` push_enabled）は任意（当面 OS の通知設定で代替可）。
-- **フェーズB（ほぼ完了、2026-09-07）**: iOS。Codemagic + TestFlight。
+- **フェーズB（iOS 基本機能）— ✅ 完了（2026-09-07）**: iOS。Codemagic + TestFlight。
   Apple Developer 加入・App Store Connect アプリ登録（ID `6809167553`）・API キー登録・
   Codemagic 設定・署名整備（証明書 `novelshelf-dist` + 手動 App Store プロファイル）・
   **TestFlight 配信まで到達、ユーザーの iPhone にインストール済み**。詳細な経緯は [PROGRESS.md](PROGRESS.md) 冒頭。
@@ -90,22 +85,26 @@
   - 2026-09-07: `submit_to_testflight: true` を削除（外部ベータ審査へ提出しようとして
     test-info 未入力で失敗していた。内部テストは処理完了後に自動配信されるので不要）。
     外部テスト開始時に test-info 入力 + `submit_to_testflight`/`beta_groups` を戻す。
-  - **残（要ユーザー、次回セッション頭）**: 最新ビルド（読書画面セーフエリア再修正
-    〈`.safe-inset-0`/margin 版〉+ 外部ブラウザ `4b12943` + 本棚セーフエリア `b30f765` 込み）を
-    実機で確認: セーフエリア（縦/横・スクロール/ページ送り・縦書き/横書き）・作品追加で
-    外部ブラウザが開くか・読書画面ヘッダーの誤タップ・ログイン→本棚（API疎通）・
-    縦書き/ページ送り/戻る。
-    - 2026-09-07: `0ce3ff8` のセーフエリア修正が絶対配置の子に効いておらず、実機で本文が
-      まだステータスバーにかぶっていた（`ScreenShot/DSC_0231.JPG`）。原因と再修正
-      （commit `6ec89da`）は [PROGRESS.md](PROGRESS.md) 冒頭。**Web本番へはデプロイ済み**。
-      iOS 実機で「表示はいい感じ」と確認（2026-09-07）。ページ送り/横画面など網羅確認は残。
-  - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。
-  - アプリアイコンが Capacitor デフォルトのまま（Android は設定済み）。polish 項目。
-- **フェーズC（未着手）**: iOS プッシュ。APNs 認証キー（Apple）+ Firebase に iOS アプリ追加 +
-  `GoogleService-Info.plist` + Firebase に APNs キー登録（**要ユーザー**）→ こちらで
-  Push capability + entitlement + `AppDelegate` の APNs 配線 + iOS に Firebase Messaging 組込み
-  （`@capacitor/push-notifications` は iOS で APNs トークンしか返さずバックエンドは FCM 前提）+
-  `PushNotifications.tsx` に `ios` 追加 → TestFlight 再ビルド → 実機で通知確認。手順は [IOS_SETUP.md](IOS_SETUP.md)。
+  - **セーフエリア = ✅ 実機確認 OK**（2026-09-07、縦/横・スクロール/ページ送り 問題なし）。
+    経緯: `0ce3ff8` のセーフエリア修正が絶対配置の子に効かず本文がステータスバーにかぶって
+    いた（`ScreenShot/DSC_0231.JPG`）→ commit `6ec89da` で `.safe-inset-0`/margin 版に再修正
+    → ビルド `f483c264` で解消を確認。Web 本番へもデプロイ済み。
+  - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。→ フェーズC。
+  - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `<この後>`。`frontend/public/icons/icon-512.png`
+    ベースの紺色の本アイコン。`AppIcon-512@2x.png` を 1024px 不透明 PNG に差し替え）。
+- **フェーズC（iOS プッシュ）— 次の着手対象**。手順は [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
+  - **要ユーザー（先にこれ）**:
+    1. APNs 認証キー作成: https://developer.apple.com/account/resources/authkeys/ →＋→
+       "Apple Push Notifications service (APNs)" → `.p8` DL + Key ID メモ（`.p8` は秘密。
+       `WorkSpace/NovelShelf-secrets/` へ）
+    2. Firebase コンソール（project `novelshelf-6520c`）→ プロジェクト設定 → アプリを追加 → Apple、
+       バンドル ID `jp.novelshelf.app` → `GoogleService-Info.plist` を DL して Claude へ
+    3. Firebase → プロジェクト設定 → Cloud Messaging → Apple アプリ構成 → APNs 認証キーを
+       アップロード（手順1の `.p8` + Key ID + Team ID `28Q7PP2X98`）
+  - **受領後こちら**: Push capability + `aps-environment` entitlement + `AppDelegate` の APNs 配線 +
+    iOS に Firebase Messaging 組込み（`@capacitor/push-notifications` は iOS で APNs トークンしか
+    返さずバックエンドは FCM 前提）+ `PushNotifications.tsx` に `ios` 追加 + Codemagic ビルドで
+    `NEXT_PUBLIC_PUSH_ENABLED=true` → TestFlight 再ビルド → 実機で通知確認。
 - 開発環境: JDK 17 / Android SDK（導入済み）。iOS ビルドはクラウド（Codemagic）なので Mac 不要。
 
 **⚠️ 2026-09-06 の事故**: `git add -A` で配布証明書 `.p12`（秘密鍵入り）等を public リポジトリに
@@ -119,13 +118,15 @@
 - **M1. `/download` のクライアント分割方式への改修** — ✅ 完了（commit `3e9ecf7`）。
   `frontend/src/lib/offline/downloadNovel.ts` を新設し `GET /novels/{id}/chapters` → 各話 `GET /chapters/{id}/content` を
   逐次取得して IndexedDB へ（既キャッシュはスキップ＝再開可 / 5xx は 2-4-8秒バックオフ最大3回 / 401 中断 / 進捗表示 + 中止ボタン）。
-  バックエンド改修なし。**残: 実機ブラウザで「全話をオフライン保存」の動作確認**（[USER_TODO.md](USER_TODO.md)）。
+  バックエンド改修なし。**実機ブラウザで「全話をオフライン保存」= ✅ 確認 OK（2026-09-07、P9 完了）**。
 - **M2. 移設実行** — ✅ 2026-09-04 完了。DB 移設・Cloudflare 切替・HSTS・動作確認まで（[DECISIONS.md](DECISIONS.md) 2026-09-04）。
 - **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` の P1〜P14。
   **VPS 最終ダンプ・オフサイト退避・リストア試験・ConoHa イメージ保存・VPS 削除・ConoHa 解約は
   すべて 2026-09-04 に完了済み**（T+7d/T+21d 計画を前倒し）。SSOT §4末尾で NovelShelf に残るのは
-  P9（`/download` 全話保存の実機確認）のみ。他の P2/P6/P10 はミニPC全体の運用項目。
-  `docker/nginx/`・`certbot`・`docker-compose.prod.yml` は履歴目的でリポジトリに残置（稼働先は無い）。
+  ~~P9（`/download` 全話保存の実機確認）~~ ✅ 完了（2026-09-07）。
+  **NovelShelf 専用のミニPC移設残タスクはゼロ**。P2（DHCP予約）/ P6（Discord Webhook）/ P10（UPS）は
+  ミニPC全体の運用項目で、いずれも稼働に影響しない → **「気が向いたらやる」方針（期限なし）で合意
+  （2026-09-07）**。`docker/nginx/`・`certbot`・`docker-compose.prod.yml` は履歴目的で残置（稼働先は無い）。
 
 ### 既存タスク
 

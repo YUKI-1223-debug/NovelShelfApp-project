@@ -12,7 +12,7 @@ iOS 実機（TestFlight）で読書画面の本文がまだステータスバー
   `position: absolute` + `inset-0`。**絶対配置の要素は祖先の padding ボックスに対して
   配置される**ため、祖先に padding を付けても `inset-0` の子はセーフエリアぶん内側に
   寄らず、padding は完全に無効だった（コミットメッセージの想定違い）。
-- **修正**（commit 予定）:
+- **修正**（commit `6ec89da`）:
   - `globals.css` に `.safe-inset-0`（`top/right/bottom/left` を `env(safe-area-inset-*)`
     に）と `.safe-mt/.safe-mb/.safe-mx`（margin 版。要素の `px-4` 等を打ち消さない）を追加。
   - 本文スクロール領域: `inset-0` → `safe-inset-0`。`px-6 py-6`（本文余白設定）と衝突しない。
@@ -23,8 +23,25 @@ iOS 実機（TestFlight）で読書画面の本文がまだステータスバー
 - **Web本番（ミニPC）へデプロイ済み**（2026-09-07、ユーザー実行）。
   `https://novelshelf.jp` 配信の CSS に `.safe-inset-0`/`.safe-mt`/`.safe-mb`/`.safe-mx` が
   含まれることを確認（Web は `env()` が 0 なので見た目は不変）。
-- **要ユーザー**: TestFlight 次ビルドで実機確認（縦/横、スクロール/ページ送り、縦書き/横書き）。
-  → 2026-09-07 ユーザー報告「表示はいい感じ」。実機で改善を確認。
+- **実機確認 ✅ OK**（2026-09-07、ビルド `f483c264`）: 縦画面・横画面、スクロール・ページ送り
+  いずれも本文がステータスバー/Dynamic Island/ホームインジケータにかからないことを確認。
+
+## モバイルアプリ 進捗ロールアップ（2026-09-07）
+
+- **フェーズB（iOS 基本機能）= ✅ 完了**: TestFlight 内部配信、読書画面セーフエリア OK。
+- **フェーズA（Android）= ✅ 実質完了**: **サーバープッシュ通知が実機で動作確認済み**
+  （2026-09-07 朝、更新検知の自動チェック通知がユーザーの端末に実際に届いた）。
+  残るユーザー作業は release apk を実機へ入れて一通り触るだけ。
+- **P9（`/download` 全話保存の実機確認）= ✅ 完了**（2026-09-07）。
+- **iOS アプリアイコン = ✅ 設定**（2026-09-07）: `frontend/public/icons/icon-512.png` ベースの
+  紺色（`#2B3A55`）の本アイコン。`AppIcon-512@2x.png` を sharp で 1024px・不透明 PNG に生成し直し
+  （角丸はソースの分をフレーム外へ追い出して full-bleed 紺地に。iOS 側が squircle マスクを適用）。
+  スプラッシュ画面は未変更（polish 残）。
+- **次の着手対象 = フェーズC（iOS プッシュ）**: ユーザーが APNs 認証キー作成 / Firebase に iOS アプリ追加
+  （`GoogleService-Info.plist`）/ Firebase に APNs キー登録 の3つを済ませたら、Claude が
+  Push capability + entitlement + `AppDelegate` APNs 配線 + iOS Firebase Messaging 組込み +
+  `PushNotifications.tsx` に `ios` 追加 → Codemagic 再ビルド。手順は `docs/IOS_SETUP.md` フェーズC。
+- **ミニPC運用の P2/P6/P10 = 「気が向いたら」方針**（期限なし、稼働影響なし）。
 
 ### Codemagic の TestFlight post-processing 失敗（2026-09-07）
 
@@ -37,7 +54,7 @@ iOS 実機（TestFlight）で読書画面の本文がまだステータスバー
   処理完了後に**自動配信**され、ベータ審査は不要。アップロード済みビルドはそのまま
   内部テスターに配信される（＝この失敗は配信自体には影響しない）。
 - 対処: `codemagic.yaml` の `publishing.app_store_connect.submit_to_testflight: true` を削除
-  （commit 予定）。以後は「アップロードのみ」＝内部テストへ自動配信。
+  （commit `b2f25b7`）。以後は「アップロードのみ」＝内部テストへ自動配信。
 - 外部テストを始めるときは App Store Connect の
   `apps/6809167553/testflight/test-info` を埋めてから `submit_to_testflight` + `beta_groups` を戻す。
 

@@ -7,13 +7,25 @@ Claude Codeで対応可能な作業は含めない。ユーザー本人でない
 0. **ミニPC移設カットオーバー完了（2026-09-04）— 残りのユーザー作業**
    `https://novelshelf.jp` は自宅ミニPCで本番稼働中。移設インフラの残タスク一覧・進捗の SSOT は
    **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md`**（§4末尾 P1〜P14）。そのうちユーザー本人でないと進められないもの:
-   - **P9: 「全話をオフライン保存」の実機ブラウザ確認**（下記 1 の関連。長編1作品で最後まで保存されるか）。
+   **いずれも稼働に影響しない運用改善。「気が向いたらやる」方針で合意（2026-09-07、期限なし）**:
    - **P2: 親機ルーターで DHCP 予約**。MAC `84:47:09:8F:FC:25` に `192.168.11.50` を固定（netplan 静的化との二重化）。
-   - **P6: Discord Webhook の作成**（任意）。restic・ヘルスチェック・（将来）NUT の通知先。
+   - **P6: Discord Webhook の作成**。restic・ヘルスチェック・（将来）NUT の通知先。URL を Claude に渡せば設定します。
    - **P10: UPS の選定・購入**（消費電力を実測してから。350VA クラス目安。ONU+親機+WEX+ミニPC を1台に）。
-   - 2本目SSD 増設（P14）は延期（セール時に購入予定・当面 1SSD 運用、稼働への影響なし）。
-   - （完了）P3 Backblaze B2 オフサイト / P7 外部死活監視 / リストア試験 / **VPS 最終ダンプ・ConoHa 解約・VPS 削除**
-     はすべて 2026-09-04 に完了済み。
+   - 2本目SSD 増設（P14）も同様に延期（セール時購入予定・当面 1SSD 運用）。
+   - （完了）P3 B2 オフサイト / P7 外部死活監視 / リストア試験 / VPS 最終ダンプ・ConoHa 解約・VPS 削除（2026-09-04）/
+     **P9 `/download` 全話保存の実機確認（2026-09-07）**。
+
+0-b. **iOS プッシュ通知の開通（フェーズC）— コンソール作業3つ**
+   Android のプッシュは 2026-09-07 に実機で動作確認済み。iOS でも通知を受け取れるようにするための
+   ユーザー作業（これが済んだら Claude がアプリ側のコードを配線 → TestFlight 再ビルド）。手順の詳細は
+   [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
+   1. **APNs 認証キー**: https://developer.apple.com/account/resources/authkeys/ →＋→
+      "Apple Push Notifications service (APNs)" にチェック → `.p8` をダウンロード + Key ID をメモ。
+      `.p8` は秘密鍵なので `WorkSpace/NovelShelf-secrets/` に保管（リポジトリに置かない）。
+   2. **Firebase に iOS アプリを追加**: Firebase コンソール → プロジェクト `novelshelf-6520c` → プロジェクト設定
+      → 「アプリを追加」→ Apple、バンドル ID `jp.novelshelf.app` → `GoogleService-Info.plist` をダウンロードして Claude へ。
+   3. **Firebase に APNs キーを登録**: プロジェクト設定 → Cloud Messaging → 「Apple アプリの構成」→
+      APNs 認証キーをアップロード（手順1の `.p8` + Key ID + Team ID `28Q7PP2X98`）。
 
 1. **（PCのみ）ブラウザ拡張機能の手動インストール・動作確認**
    なろう・カクヨム・ハーメルンの作品ページに「本棚に追加」ボタンを表示するChrome/Edge拡張機能を実装しました（`browser-extension/`ディレクトリ、個人利用専用・非公開）。このサンドボックス環境ではブラウザへの拡張機能インストール自体を自動テストできなかったため、`browser-extension/README.md`の手順（`chrome://extensions`→デベロッパーモード→パッケージ化されていない拡張機能を読み込む）で実際にインストールし、ログイン→なろう/カクヨム/ハーメルンの作品ページでボタンが表示され、押すと本棚に追加されるかを確認してください。AndroidChromeは拡張機能非対応、iOS Safariは別途Xcodeでのラッピングが必要なため未対応です（PC専用）。
