@@ -14,11 +14,21 @@
 - DB 移設: VPS で `pg_dump -Fc --no-owner` → 転送 → ミニPCで `pg_restore --no-owner --no-privileges --exit-on-error` → `ANALYZE`。**全12テーブルの件数が VPS と完全一致**（users 1 / novels 91 / chapters 2691 / bookshelf_entries 89 / reading_history 1130 ほか）。
 - `.env`: `JWT_SECRET` を VPS と**同一**にしたため全ユーザーのセッション維持（再ログイン不要を実証）。`POSTGRES_PASSWORD` は論理ダンプ方式のため新規乱数。
 - Cloudflare: `novelshelf.jp` の A レコード（→VPS）を削除し、Zero Trust の「公開アプリケーションルート」で `novelshelf.jp` → `HTTP` → `caddy:80` を追加（CNAME →`<uuid>.cfargotunnel.com` プロキシON が自動生成）。HSTS 有効化（`max-age=31536000; includeSubDomains`、preload なし）。`www.novelshelf.jp` は A レコード削除（アプリ非対応のため）。
-- restic バックアップ（`pg_dump` + `.env` を age 暗号化 + `/srv/edge` を同梱 → restic）のローカルリポジトリを構築。**オフサイト（Backblaze B2）は未設定＝残タスク**。
+- restic バックアップ（`pg_dump` + `.env` を age 暗号化 + `/srv/edge` を同梱 → restic）を構築。
+  ローカル + Backblaze B2 オフサイトの 2 系統、`backup.timer` 毎日 03:34。両系統でリストア試験合格
+  （B2 は 2026-09-04 夜に設定完了）。
 
-**VPS の扱い**: backend/frontend のみ停止で cold standby（postgres/nginx は稼働＝ロールバック用）。T+7d（〜09-11頃）で最終 `pg_dump` → VPS アプリ `docker compose down`。**T+21d（〜09-25以降）で ConoHa 解約**（条件: 21日間インシデントなし + restic 14日連続グリーン + リストア試験合格）。
+**VPS の扱い**（当初計画）: backend/frontend 停止で cold standby → T+7d 最終ダンプ → T+21d ConoHa 解約。
+→ **実際は 2026-09-04 中に前倒しで全完了**（下記「2026-09-04 夜」参照）。最終 `pg_dump`
+（`novelshelf_vps_final_20260904_2153.dump` 337K）を作業PC + B2 の 2 箇所へ退避、ローカル/B2 両方で
+リストア試験合格、ConoHa イメージ `novelshelf-final-20260904`（13.6GB）保存後、**VPS 本体を削除し
+ConoHa を解約**。NovelShelf は ConoHa 依存ゼロ。「restic 14日連続グリーン」条件は早期解約方針で省略。
 
-**移設後の残タスク・運用**: SSOT は **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。主なもの: Backblaze B2 オフサイト、外部死活監視（healthchecks.io / UptimeRobot）、親機ルーターの DHCP 予約、UPS 導入、`/download` 全話保存の実機確認、ドキュメント整理。2本目SSD 増設（P14）は 2026-09-04 に延期（セール時購入・当面1SSD運用、稼働影響なし）。
+**移設後の残タスク・運用**: SSOT は **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md`**（§4末尾の P1〜P14 表）。
+2026-09-07 時点で NovelShelf 関連の未了は **P9（`/download` 全話保存の実機確認）** のみ。
+B2 オフサイト・外部死活監視・リストア試験・ドキュメント整理・VPS 解約は完了。
+親機 DHCP 予約（P2）・Discord Webhook（P6）・UPS 導入（P10）・2本目SSD（P14）はミニPC全体の運用項目で
+NovelShelf の稼働には影響なし。
 
 **24/7 運用で入れた設定（2026-09-04）**:
 - MT7922 Bluetooth ドライバ（kernel 6.8）の起動時 NULL deref Oops（非致命）対策として **Bluetooth を無効化**（`btusb`/`btmtk` blacklist + `bluetooth.service` mask）。

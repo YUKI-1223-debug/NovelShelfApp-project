@@ -254,11 +254,13 @@ VPS を停止していた間にミニPC側で発生した書き込み（＝メ�
 - [x] ミニPC で日次 `pg_dump` を timer 化（`backup.sh` + `backup.timer`、restic、毎日 03:34）— 2026-09-04
 - [x] `docs/DEPLOY.md` を「ミニPC版 + 旧VPS手順（アーカイブ）」に再構成 — 2026-09-04
 - [x] `docs/NEXT_TASK.md` / `docs/DECISIONS.md` / `docs/PROGRESS.md` / `docs/USER_TODO.md` に移設完了を記録 — 2026-09-04
-- [ ] restic のオフサイト保存先（Backblaze B2）を設定（P3。**最優先の残タスク**）
-- [ ] リストア試験（空DBへ復元 → ログインまで。ConoHa 解約の必須条件、P5）
-- [ ] **T+7d（〜09-11頃）**: VPS で最終 `pg_dump` → オフサイト退避 → VPS アプリ `docker compose down`（cold standby 化）
-- [ ] **T+21d（〜09-25以降）**: VPS の証明書更新 cron 削除 → ConoHa「イメージ保存」→ ConoHa VPS を解約（付録D-3 全項目クリアが条件）
-- [ ] `docker/nginx/`・`certbot` サービス・`docker-compose.prod.yml` の扱いを決める（ConoHa 解約までは VPS 復帰用に残置）
+- [x] restic のオフサイト保存先（Backblaze B2）を設定（P3）— 2026-09-04 夜
+- [x] リストア試験（空DBへ復元 → ログインまで）— 2026-09-04、ローカル/B2 両方合格（P5）
+- [x] ~~T+7d~~ **前倒し 2026-09-04**: VPS で最終 `pg_dump`（337K）→ 作業PC + B2 の 2 箇所へ退避 →
+      VPS アプリ `docker compose ... prod down`（全コンテナ削除、volume 3本のみ保持）→ 証明書更新 cron 停止
+- [x] ~~T+21d~~ **前倒し 2026-09-04**: ConoHa「イメージ保存」（`novelshelf-final-20260904` 13.6GB）→
+      **VPS 本体削除・ConoHa 解約完了**（付録D-3 は「restic 14日グリーン」を早期解約方針で省略）
+- [x] `docker/nginx/`・`certbot`・`docker-compose.prod.yml` は履歴目的でリポジトリに残置（稼働先は無い）
 
 ---
 

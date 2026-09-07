@@ -282,7 +282,9 @@ Android/iOS へ「インストールして使うアプリ」を追加したい�
 - DB は `pg_dump -Fc` → `pg_restore` で移設。全12テーブルの件数が VPS と完全一致。`JWT_SECRET` を VPS と揃えたためユーザーの再ログイン不要。
 - HSTS 有効化・Cloudflare Universal SSL 有効を確認。既存アカウントでログイン→本棚→読書位置まで動作確認済み。
 - ディスク暗号化 = LUKS（clevis + TPM2/PCR7 で無人自動解錠。停電→無人完全復旧を実証）。
-- VPS は backend/frontend 停止で cold standby（T+7d 〜09-11頃まで）。**T+21d（〜09-25以降）で ConoHa 解約予定**。
+- **VPS は 2026-09-04 中に前倒しで完全撤収済み**: 最終 `pg_dump`（337K）を作業PC + B2 の 2 箇所へ退避 →
+  ローカル/B2 両方でリストア試験合格 → ConoHa イメージ `novelshelf-final-20260904`（13.6GB）保存 →
+  **VPS 本体削除・ConoHa 解約完了**。ロールバック先は無し。NovelShelf は ConoHa 依存ゼロ。
 - 移設の全経過・残タスク（restic B2 オフサイト / 外部死活監視 / VPS解約 ほか）は
   **`WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` が SSOT**。アプリ側の当日手順は [MIGRATION_to_minipc.md](MIGRATION_to_minipc.md)。
 - 移設前の準備（`docker-compose.minipc.yml` 新設 = commit `b562751` / `/download` クライアント分割方式改修 = commit `3e9ecf7`）は完了済み。

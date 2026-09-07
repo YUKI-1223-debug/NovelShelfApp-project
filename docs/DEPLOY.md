@@ -3,7 +3,8 @@
 > **★2026-09-04: 本番は自宅ミニPCへ移設完了。** `https://novelshelf.jp` は Ubuntu Server 24.04 の
 > ミニPC上で、**Cloudflare Tunnel + 共有 Caddy**（`/srv/edge/`）経由で稼働中。自前 `nginx`/`certbot` は廃止し
 > `docker/docker-compose.minipc.yml` を使う。**現行の再デプロイ手順は下記「ミニPC版」を見る。**
-> このファイル後半の「旧VPS手順（アーカイブ）」は ConoHa VPS 運用時のもので、T+21d までのロールバック用に残置。
+> このファイル後半の「旧VPS手順（アーカイブ）」は ConoHa VPS 運用時のもの。**VPS は 2026-09-04 に
+> 削除・ConoHa 解約済み**なので稼働先は無く、履歴目的でのみ残置。
 
 ---
 
@@ -62,10 +63,10 @@ docker compose -f /srv/edge/docker-compose.yml logs cloudflared   # Tunnel 側
 
 ---
 
-## 旧VPS手順（アーカイブ・ロールバック用）
+## 旧VPS手順（アーカイブ・履歴目的）
 
-> 以下は ConoHa VPS（`163.44.116.137`）運用時の手順。2026-09-04 のカットオーバーで backend/frontend は停止済み
-> （postgres/nginx は T+7d まで稼働＝ロールバック用）。T+21d の ConoHa 解約でこの節は完全に用済みになる。
+> 以下は ConoHa VPS（`163.44.116.137`）運用時の手順。**VPS は 2026-09-04 に削除・ConoHa 解約済み**で
+> 稼働環境は存在しない。将来ふたたび VPS へ戻す場合の参考としてのみ残す。
 
 ConoHa VPS（Ubuntu想定）へのデプロイ手順。**本番環境を変更するコマンドは必ずユーザー自身の手で実行すること**（Claude Codeが直接VPSを操作することはない）。ここに書かれたコマンドはすべてVPS上のSSHセッションで実行する想定。
 

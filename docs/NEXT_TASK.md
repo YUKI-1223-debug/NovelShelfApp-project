@@ -13,8 +13,13 @@
 - **再デプロイ（コード更新時）**: [DEPLOY.md](DEPLOY.md) 冒頭「ミニPC版」節。
   ミニPCで `cd /srv/NovelShelfApp-project && git pull && cd docker && docker compose --env-file ../.env -f docker-compose.yml -f docker-compose.minipc.yml up -d --build`。
   本番影響コマンドは Claude が用意 → ユーザーが実行（[production deploy handoff の方針]）。
-- **VPS**: backend/frontend 停止で cold standby。T+7d（〜09-11頃）で最終 `pg_dump`→`down`、T+21d（〜09-25以降）で ConoHa 解約。
-- 旧 VPS 運用（`163.44.116.137` / `nginx`+`certbot` / `docker-compose.prod.yml`）はロールバック用に温存。手順は [DEPLOY.md](DEPLOY.md) の「旧VPS手順（アーカイブ）」節。
+- **旧 VPS（ConoHa `163.44.116.137`）は 2026-09-04 に解約・削除済み**（早期解約方針。T+7d/T+21d
+  計画は前倒しで同日に完了）。最終 `pg_dump`（`novelshelf_vps_final_20260904_2153.dump` 337K）は
+  作業PC + Backblaze B2 `manual-archive/` の 2 箇所に退避済み（SHA1 一致確認）。ConoHa イメージ
+  `novelshelf-final-20260904`（13.6GB）のみ ConoHa 側に残置。ロールバック先はもう無い。
+  詳細は SSOT `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` §4末尾 P11/P12 と 2026-09-04 の進捗ログ。
+- 旧 VPS 手順（`nginx`+`certbot` / `docker-compose.prod.yml`）はリポジトリ内に
+  [DEPLOY.md](DEPLOY.md) の「旧VPS手順（アーカイブ）」節として履歴目的で残置（稼働環境はもう無い）。
 
 ### 過去セッションの記録（参考）
 
@@ -113,17 +118,15 @@
   逐次取得して IndexedDB へ（既キャッシュはスキップ＝再開可 / 5xx は 2-4-8秒バックオフ最大3回 / 401 中断 / 進捗表示 + 中止ボタン）。
   バックエンド改修なし。**残: 実機ブラウザで「全話をオフライン保存」の動作確認**（[USER_TODO.md](USER_TODO.md)）。
 - **M2. 移設実行** — ✅ 2026-09-04 完了。DB 移設・Cloudflare 切替・HSTS・動作確認まで（[DECISIONS.md](DECISIONS.md) 2026-09-04）。
-- **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` の P1〜P14。このリポジトリ側で関係するのは:
-  - リストア試験（restic から空DBへ復元 → ログインまで。ConoHa 解約の必須条件）
-  - `/download` 全話保存の実機確認（上記 M1 の残）
-  - T+7d の VPS 最終ダンプ、T+21d の ConoHa 解約
-  - `docker/nginx/`・`certbot`・`docker-compose.prod.yml` の最終的な扱い（当面は VPS 復帰用に残置）
+- **M3. 移設後の残タスク** — SSOT は `WorkSpace/ミニPC移行/ミニPC移行_進捗管理.md` の P1〜P14。
+  **VPS 最終ダンプ・オフサイト退避・リストア試験・ConoHa イメージ保存・VPS 削除・ConoHa 解約は
+  すべて 2026-09-04 に完了済み**（T+7d/T+21d 計画を前倒し）。SSOT §4末尾で NovelShelf に残るのは
+  P9（`/download` 全話保存の実機確認）のみ。他の P2/P6/P10 はミニPC全体の運用項目。
+  `docker/nginx/`・`certbot`・`docker-compose.prod.yml` は履歴目的でリポジトリに残置（稼働先は無い）。
 
 ### 既存タスク
 
-0. **E2Eテスト修正のコミット・push**: `frontend/e2e/critical-journey.spec.ts`の修正がまだ
-   コミットされていない（本番コードには影響しないテストのみの変更）。pushすれば次回の
-   「なろう疎通確認」ワークフロー実行（週次 or 手動）でCI側の成功も確認できる。
+0. ~~E2Eテスト修正のコミット・push~~ — ✅ 完了（`frontend/e2e/critical-journey.spec.ts`、commit `92e7267`）。
 1. **ユーザーによる実機確認**（[USER_TODO.md](USER_TODO.md)参照）: 本棚のタイトル欠落解消・本棚の検索フィルター・読書画面のお気に入りハート・`/stats`が消えていることを確認してもらう。
 2. **（任意・時間があれば）縦書きページ送りの根本修正**: CSS `columns`の`column-gap`がvertical-rlで実測可能な形で反映されていない可能性が高く、CSS任せのアプローチ自体を見直す必要がありそう（詳細は[DECISIONS.md](DECISIONS.md)の2026-07-19エントリ参照）。優先度は低め（横書きで代替可能）。
 3. **ブラウザ拡張機能の実機インストール確認**（[USER_TODO.md](USER_TODO.md)参照）
