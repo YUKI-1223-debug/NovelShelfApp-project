@@ -2,6 +2,33 @@
 
 最終更新: 2026-09-07
 
+## フェーズC（iOS プッシュ）着手（2026-09-07、進行中）
+
+Android プッシュが実機で動いたので iOS プッシュへ。全体の流れ:
+① APNs 認証キー作成（👤）→ ② Firebase に iOS アプリ追加（👤）→ ③ Firebase に APNs キー登録（👤）
+→ ④ アプリ側コード配線（🤖）→ Codemagic 再ビルド → ⑤ 実機で通知確認（👤）。
+
+- **① APNs 認証キー = ✅ 完了**（2026-09-07）:
+  - Apple Developer → Keys で新規作成。Name `NovelShelf APNs` / **Key ID `FZ3Z9S2384`** /
+    Service = APNs（Environment: Sandbox & Production、Team Scoped / All Topics）。
+  - `.p8` は `WorkSpace/NovelShelf-secrets/AuthKey_FZ3Z9S2384.p8`（PEM 秘密鍵・パスワードなし・257B）。
+    リポジトリ管理外（`.gitignore` の `*.p8`）。Team ID = `28Q7PP2X98`。
+  - ※ 既存の `AuthKey_TL4KRXDVV3.p8` は別物（Codemagic 用 App Store Connect API キー）。
+- **② Firebase に iOS アプリ追加 = 🔜 ユーザー作業中**:
+  Firebase コンソール（project `novelshelf-6520c`）→ プロジェクト設定 → アプリを追加 → Apple、
+  バンドル ID `jp.novelshelf.app`、App Store ID `6809167553` → `GoogleService-Info.plist` を DL して
+  `WorkSpace/NovelShelf-secrets/` へ（Android の `google-services.json` と同じ扱い）。SDK 追加ウィザードはスキップ。
+- **③ Firebase に APNs キー登録 = 未**: プロジェクト設定 → Cloud Messaging → Apple アプリの構成 →
+  `.p8`（`FZ3Z9S2384`）+ Key ID + Team ID `28Q7PP2X98` をアップロード。
+- **④ こちらのコード方針（検討中）**: Capacitor 8 iOS は SPM ベース（`CapApp-SPM/Package.swift` は
+  Capacitor CLI 管理、CocoaPods 不使用）。iOS の `@capacitor/push-notifications` は APNs トークンしか
+  返さず、バックエンドは FCM トークン前提 → **FCM を APNs にブリッジする必要**あり。
+  第一候補 = `@capacitor-firebase/messaging`（SPM 対応、`getToken()` が両 OS で FCM トークンを返す）。
+  Android は既存の `@capacitor/push-notifications` フローが実機検証済みのため、置き換えの影響範囲を精査中。
+  `GoogleService-Info.plist` は `.gitignore` に追加 → Codemagic へは base64 の secure 環境変数で注入
+  （`codemagic.yaml` にデコードステップ追加）。
+- **⑤ 実機確認 = 未**。
+
 ## 読書画面セーフエリア再修正（2026-09-07）
 
 iOS 実機（TestFlight）で読書画面の本文がまだステータスバー/Dynamic Island にかぶる

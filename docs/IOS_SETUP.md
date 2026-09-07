@@ -86,8 +86,11 @@ GitHub push → Codemagic(クラウド Mac) → npm ci → web ビルド → cap
 
 iOS はまだプッシュ無効（`PushNotifications.tsx` で android のみに限定）。有効化に必要:
 
-1. **APNs 認証キー**: https://developer.apple.com/account/resources/authkeys/ → ＋ →
-   "Apple Push Notifications service (APNs)" にチェック → `.p8` ダウンロード + Key ID メモ
+1. **APNs 認証キー** — ✅ 完了（2026-09-07）: Name `NovelShelf APNs` / **Key ID `FZ3Z9S2384`** /
+   Environment `Sandbox & Production` / `Team Scoped (All Topics)`。`.p8` =
+   `WorkSpace/NovelShelf-secrets/AuthKey_FZ3Z9S2384.p8`。Team ID `28Q7PP2X98`。
+   （作成手順: https://developer.apple.com/account/resources/authkeys/ → ＋ →
+   "Apple Push Notifications service (APNs)" → Configure で環境/種別を設定 → `.p8` ダウンロード（1回のみ））
 2. **Firebase に iOS アプリを追加**: Firebase コンソール → プロジェクト設定 → アプリを追加 → Apple
    - バンドル ID `jp.novelshelf.app`
    - `GoogleService-Info.plist` をダウンロード → 渡す（`frontend/ios/App/App/` に配置）

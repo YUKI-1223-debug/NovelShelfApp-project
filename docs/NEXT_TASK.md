@@ -92,19 +92,17 @@
   - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。→ フェーズC。
   - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `7347191`。`frontend/public/icons/icon-512.png`
     ベースの紺色の本アイコン。`AppIcon-512@2x.png` を 1024px 不透明 PNG に差し替え）。
-- **フェーズC（iOS プッシュ）— 次の着手対象**。手順は [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
-  - **要ユーザー（先にこれ）**:
-    1. APNs 認証キー作成: https://developer.apple.com/account/resources/authkeys/ →＋→
-       "Apple Push Notifications service (APNs)" → `.p8` DL + Key ID メモ（`.p8` は秘密。
-       `WorkSpace/NovelShelf-secrets/` へ）
-    2. Firebase コンソール（project `novelshelf-6520c`）→ プロジェクト設定 → アプリを追加 → Apple、
-       バンドル ID `jp.novelshelf.app` → `GoogleService-Info.plist` を DL して Claude へ
-    3. Firebase → プロジェクト設定 → Cloud Messaging → Apple アプリ構成 → APNs 認証キーを
-       アップロード（手順1の `.p8` + Key ID + Team ID `28Q7PP2X98`）
-  - **受領後こちら**: Push capability + `aps-environment` entitlement + `AppDelegate` の APNs 配線 +
-    iOS に Firebase Messaging 組込み（`@capacitor/push-notifications` は iOS で APNs トークンしか
-    返さずバックエンドは FCM 前提）+ `PushNotifications.tsx` に `ios` 追加 + Codemagic ビルドで
-    `NEXT_PUBLIC_PUSH_ENABLED=true` → TestFlight 再ビルド → 実機で通知確認。
+- **フェーズC（iOS プッシュ）— 進行中（2026-09-07〜）**。詳細な進捗は [PROGRESS.md](PROGRESS.md) 冒頭。
+  手順は [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
+  1. **APNs 認証キー = ✅ 完了**（Key ID `FZ3Z9S2384`、`.p8` は `WorkSpace/NovelShelf-secrets/`、
+     Team ID `28Q7PP2X98`）。
+  2. **Firebase に iOS アプリ追加 = 🔜 ユーザー作業中**（project `novelshelf-6520c`、
+     バンドル ID `jp.novelshelf.app` → `GoogleService-Info.plist` を secrets へ）。
+  3. **Firebase に APNs キー登録 = 未**（Cloud Messaging → Apple アプリ構成 → `.p8` + Key ID + Team ID）。
+  4. **こちら**: `@capacitor-firebase/messaging`（SPM 対応、FCM トークン取得）導入 + Push capability +
+     `aps-environment` entitlement + `AppDelegate` の APNs/Firebase 配線 + `PushNotifications.tsx` に
+     `ios` 追加。`GoogleService-Info.plist` は `.gitignore` + Codemagic の base64 環境変数で注入。
+  5. TestFlight 再ビルド → 実機で通知確認（👤）。
 - 開発環境: JDK 17 / Android SDK（導入済み）。iOS ビルドはクラウド（Codemagic）なので Mac 不要。
 
 **⚠️ 2026-09-06 の事故**: `git add -A` で配布証明書 `.p12`（秘密鍵入り）等を public リポジトリに
