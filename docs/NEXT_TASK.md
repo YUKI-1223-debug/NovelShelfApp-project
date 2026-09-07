@@ -70,7 +70,10 @@
 - **フェーズA（進行中）**: Capacitor 8 導入・`frontend/android` 生成・**デバッグ apk ビルド成功**まで完了
   （2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。残り:
   - ユーザーの Android 実機へインストールして動作確認（**要ユーザー: 実機接続 or apk 転送**）
-  - 本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` 追加 → ミニPC反映（**要ユーザー: デプロイ**）
+  - ~~本番 `CORS_ALLOWED_ORIGINS` に `https://localhost` 追加~~ → **不要**。直後の commit
+    `CapacitorHttp を有効化`（2026-09-06 18:11）で fetch/XHR がネイティブ HTTP 層を通るため
+    WebView の CORS 制約を受けない（`capacitor.config.ts` のコメント参照）。SSE 等 CORS が
+    絡む別経路も未使用。実機確認で本番 API 疎通に問題が出たときだけ再検討。
   - ~~リリース署名鍵（keystore）作成 → release apk~~ ✅ 完了（[ANDROID_SIGNING.md](ANDROID_SIGNING.md)）
   - ~~サーバープッシュ通知のコード実装~~ ✅ 完了（バックエンド + フロント、既定は無効）。
     **残: ユーザーが Firebase プロジェクト作成 → `google-services.json` +
