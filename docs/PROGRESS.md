@@ -18,16 +18,28 @@ Android プッシュが実機で動いたので iOS プッシュへ。全体の�
   Firebase コンソール（project `novelshelf-6520c`）→ プロジェクト設定 → アプリを追加 → Apple、
   バンドル ID `jp.novelshelf.app`、App Store ID `6809167553` → `GoogleService-Info.plist` を DL して
   `WorkSpace/NovelShelf-secrets/` へ（Android の `google-services.json` と同じ扱い）。SDK 追加ウィザードはスキップ。
-- **③ Firebase に APNs キー登録 = 未**: プロジェクト設定 → Cloud Messaging → Apple アプリの構成 →
-  `.p8`（`FZ3Z9S2384`）+ Key ID + Team ID `28Q7PP2X98` をアップロード。
-- **④ こちらのコード方針（検討中）**: Capacitor 8 iOS は SPM ベース（`CapApp-SPM/Package.swift` は
-  Capacitor CLI 管理、CocoaPods 不使用）。iOS の `@capacitor/push-notifications` は APNs トークンしか
-  返さず、バックエンドは FCM トークン前提 → **FCM を APNs にブリッジする必要**あり。
-  第一候補 = `@capacitor-firebase/messaging`（SPM 対応、`getToken()` が両 OS で FCM トークンを返す）。
-  Android は既存の `@capacitor/push-notifications` フローが実機検証済みのため、置き換えの影響範囲を精査中。
-  `GoogleService-Info.plist` は `.gitignore` に追加 → Codemagic へは base64 の secure 環境変数で注入
-  （`codemagic.yaml` にデコードステップ追加）。
-- **⑤ 実機確認 = 未**。
+- **③ Firebase に APNs キー登録 = ✅ 完了**（2026-09-07、iOS アプリ「NovelShelf iOS」の Apple アプリ構成へ
+  `.p8`（`FZ3Z9S2384`）+ Key ID + Team ID `28Q7PP2X98` をアップロード）。
+- **④ アプリ側コード = ✅ 完了**（2026-09-07、commit で push）:
+  - **`@capacitor/push-notifications` → `@capacitor-firebase/messaging` に両 OS 統一**。両 OS で FCM トークンを
+    返すため、バックエンド（`FirebasePushSender` = FCM HTTP v1 + apns 中継）は無改修。
+  - `PushNotifications.tsx` を `FirebaseMessaging` API で書き直し（対応プラットフォームに `ios` 追加）。
+  - iOS: `AppDelegate` に APNs 橋渡し3メソッド / `App.entitlements`（`aps-environment=production`）+
+    `CODE_SIGN_ENTITLEMENTS` / `GoogleService-Info.plist` を Xcode リソースに追加（実体は gitignore、
+    Codemagic は `GOOGLE_SERVICE_INFO_PLIST_B64` から復元）。`FirebaseApp.configure()` はプラグインが自前で呼ぶ。
+  - `CapApp-SPM/Package.swift` は `cap sync` が再生成（`symlink` は使わず node_modules 相対パス方式）。
+  - Android: `cap sync` でプラグイン差し替え、**release ビルド成功をローカル確認**。versionCode 3 / `1.0.2`。
+  - `codemagic.yaml`: `firebase` 変数グループ + plist 復元ステップ追加。
+  - frontend: tsc / lint / `build:app` / Android release build すべて成功。
+- **⑤ 実機確認 = 未**:
+  - Android: v1.0.2 apk をユーザー実機へ → 設定「テスト通知を送る」で通知が出るか（プラグイン載せ替えの回帰確認）。
+  - iOS: **要ユーザー先行**（下記）→ Codemagic ビルド → TestFlight → 実機で通知確認。
+- **⑤-前提（要ユーザー、iOS）**:
+  1. Apple Developer → Identifiers → `jp.novelshelf.app` → **Push Notifications** にチェック → Save
+  2. Profiles → `NovelShelf App Store` を Edit → 証明書 `novelshelf-dist` → Save → Download →
+     `WorkSpace/NovelShelf-secrets/NovelShelf_App_Store.mobileprovision` を上書き →
+     Codemagic の Code signing identities → iOS provisioning profiles で **Fetch/Upload**
+  3. Codemagic 環境変数 `GOOGLE_SERVICE_INFO_PLIST_B64`（group `firebase` / Secure）= ✅ 登録済み
 
 ## 読書画面セーフエリア再修正（2026-09-07）
 

@@ -91,18 +91,26 @@ iOS はまだプッシュ無効（`PushNotifications.tsx` で android のみに�
    `WorkSpace/NovelShelf-secrets/AuthKey_FZ3Z9S2384.p8`。Team ID `28Q7PP2X98`。
    （作成手順: https://developer.apple.com/account/resources/authkeys/ → ＋ →
    "Apple Push Notifications service (APNs)" → Configure で環境/種別を設定 → `.p8` ダウンロード（1回のみ））
-2. **Firebase に iOS アプリを追加**: Firebase コンソール → プロジェクト設定 → アプリを追加 → Apple
-   - バンドル ID `jp.novelshelf.app`
-   - `GoogleService-Info.plist` をダウンロード → 渡す（`frontend/ios/App/App/` に配置）
-3. **Firebase に APNs キーを登録**: プロジェクト設定 → Cloud Messaging → Apple アプリ構成 →
-   APNs 認証キーをアップロード（手順1の `.p8` + Key ID + Team ID）
-4. こちら側の作業:
-   - iOS に Push Notifications capability + `aps-environment` entitlement を追加
-   - `AppDelegate` に APNs 登録コールバック + Firebase 初期化を配線
-   - iOS でも FCM トークンを取得できるよう Firebase Messaging を組み込み
-     （`@capacitor/push-notifications` は iOS では APNs トークンしか返さないため）
-   - `PushNotifications.tsx` の対応プラットフォームに `ios` を追加
-5. TestFlight ビルドし直し → iPhone で通知許可 → テスト通知で確認
+2. **Firebase に iOS アプリを追加** — ✅ 完了（2026-09-07）: project `novelshelf-6520c` /
+   バンドル ID `jp.novelshelf.app` / App Store ID `6809167553`。`GoogleService-Info.plist` は
+   `WorkSpace/NovelShelf-secrets/` に保管し、Codemagic の secure 環境変数
+   `GOOGLE_SERVICE_INFO_PLIST_B64`（group `firebase`、base64）にも登録済み。
+   ビルド時に `codemagic.yaml` のステップで `frontend/ios/App/App/GoogleService-Info.plist` へデコード。
+3. **Firebase に APNs キーを登録** — ✅ 完了（2026-09-07）: iOS アプリの Cloud Messaging →
+   Apple アプリの構成 → APNs 認証キー = `.p8`（`FZ3Z9S2384`）+ Key ID + Team ID `28Q7PP2X98`。
+4. こちら側の作業 — ✅ 完了（2026-09-07、コミット）:
+   - プッシュプラグインを **`@capacitor/push-notifications` → `@capacitor-firebase/messaging`（両 OS）** に載せ替え
+     （iOS の `@capacitor/push-notifications` は APNs トークンしか返さず、バックエンドは FCM 前提のため）。
+   - `App.entitlements`（`aps-environment=production`）+ `CODE_SIGN_ENTITLEMENTS` を pbxproj に設定。
+   - `AppDelegate` に APNs 橋渡し3メソッド。`FirebaseApp.configure()` はプラグインが自前で呼ぶ。
+   - `PushNotifications.tsx` を `FirebaseMessaging` API で書き直し、対応プラットフォームに `ios` 追加。
+   - Android は release ビルド成功をローカル確認（versionCode 3 / 1.0.2）。
+5. **残（要ユーザー）**:
+   - **App ID `jp.novelshelf.app` に Push Notifications capability を追加**（Identifiers → 対象 → Push Notifications → Save）
+   - **`NovelShelf App Store` プロビジョニングプロファイルを作り直す**（Profiles → Edit → 証明書 `novelshelf-dist` →
+     Save → Download → secrets を上書き → Codemagic の Code signing identities → iOS provisioning profiles で Fetch/Upload）
+   - Codemagic で **Start new build**（branch `main`）→ TestFlight → iPhone で通知許可 → 設定「テスト通知を送る」で確認
+   - ⚠️ SPM に firebase-ios-sdk（大）が加わるので初回ビルドは時間がかかる。失敗時はログの SPM 解決 / 署名まわりを確認。
 
 ---
 

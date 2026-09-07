@@ -35,7 +35,8 @@ cd android
 中身は 1 行 `sdk.dir=C:/Users/yuuki/AppData/Local/Android/Sdk`（**フォワードスラッシュ**で書く。
 バックスラッシュはエスケープが要りハマる）。
 
-現在の配布版: **versionCode 2 / versionName 1.0.1**（2026-09-07、セーフエリア修正 `6ec89da` 込み）。
+現在の配布版: **versionCode 3 / versionName 1.0.2**（2026-09-07、プッシュ通知プラグインを
+`@capacitor-firebase/messaging` に載せ替え。セーフエリア修正 `6ec89da` 込み）。
 再ビルドのたびに `build.gradle` の `versionCode` を +1 する。
 
 ## 実機インストール
