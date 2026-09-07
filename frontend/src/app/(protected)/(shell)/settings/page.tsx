@@ -168,7 +168,7 @@ export default function SettingsPage() {
               </SegButton>
             </div>
           </Row>
-          {Capacitor.getPlatform() === "android" && (
+          {Capacitor.isNativePlatform() && (
             <>
               <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">通知</p>
               <PushTestRow />
