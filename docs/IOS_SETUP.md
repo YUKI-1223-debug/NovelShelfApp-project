@@ -105,12 +105,15 @@ iOS はまだプッシュ無効（`PushNotifications.tsx` で android のみに�
    - `AppDelegate` に APNs 橋渡し3メソッド。`FirebaseApp.configure()` はプラグインが自前で呼ぶ。
    - `PushNotifications.tsx` を `FirebaseMessaging` API で書き直し、対応プラットフォームに `ios` 追加。
    - Android は release ビルド成功をローカル確認（versionCode 3 / 1.0.2）。
-5. **残（要ユーザー）**:
-   - **App ID `jp.novelshelf.app` に Push Notifications capability を追加**（Identifiers → 対象 → Push Notifications → Save）
-   - **`NovelShelf App Store` プロビジョニングプロファイルを作り直す**（Profiles → Edit → 証明書 `novelshelf-dist` →
-     Save → Download → secrets を上書き → Codemagic の Code signing identities → iOS provisioning profiles で Fetch/Upload）
-   - Codemagic で **Start new build**（branch `main`）→ TestFlight → iPhone で通知許可 → 設定「テスト通知を送る」で確認
-   - ⚠️ SPM に firebase-ios-sdk（大）が加わるので初回ビルドは時間がかかる。失敗時はログの SPM 解決 / 署名まわりを確認。
+5. **App ID + プロファイル + ビルド = ✅ 完了（2026-09-07）**:
+   - App ID `jp.novelshelf.app` に Push Notifications capability 追加済み。
+   - `NovelShelf App Store` プロビジョニングプロファイルを作り直し（`aps-environment=production` 入り）→
+     Codemagic に Fetch（reference `novelshelf_appstore`）。
+   - Codemagic ビルド → TestFlight → 実機で「テスト通知を送る」→ **通知到達を確認**。
+   - 「テスト通知を送る」導線は当初 `Capacitor.getPlatform() === "android"` 限定だったため iOS で出ず →
+     `Capacitor.isNativePlatform()` に修正して再ビルドで解消。
+
+> ⚠️ SPM に firebase-ios-sdk（大）が加わるので初回ビルドは時間がかかった（2回目以降はキャッシュで短縮）。
 
 ---
 

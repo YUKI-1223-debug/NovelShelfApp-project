@@ -59,10 +59,16 @@
 
 ## 次に行うこと（優先順位順）
 
-### ★モバイルアプリ化（Android/iOS）— 進行中（2026-09-06〜）
+### モバイルアプリ化（Android/iOS）— ✅ 全フェーズ完了（2026-09-06〜09-07）
 
 方針・全体設計は [MOBILE_APP_STRATEGY.md](MOBILE_APP_STRATEGY.md)。Capacitor で既存 Next.js フロントを
-ネイティブアプリ化する。バックエンドは無改修（プッシュ通知の追加を除く）。工程確認は不要、都度 PROGRESS へ記録。
+ネイティブアプリ化。バックエンドは無改修（プッシュ通知の追加を除く）。
+
+**フェーズ0/A/B/C すべて完了。** Android（release apk・実機）と iOS（TestFlight 内部配信）の
+両方で本体機能 + セーフエリア + サーバープッシュ通知が実機動作確認済み。以降は通常の機能追加時に
+`npm run sync:android` で apk 再ビルド / Codemagic で iOS 再ビルド（毎週月曜の定期ビルドあり）。
+
+polish 残（急がない）: iOS スプラッシュ画面が Capacitor デフォルト。通知 ON/OFF のアプリ内設定（`V10`）は任意。
 
 - **フェーズ0（Next.js 静的エクスポート化）— ✅ 完了**（2026-09-06、[PROGRESS.md](PROGRESS.md) 冒頭）。
   動的ルートを `/novel?id=` `/reader?novel=&chapter=` `/author?name=` に移行、`NEXT_OUTPUT=export` で
@@ -92,20 +98,14 @@
   - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。→ フェーズC。
   - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `7347191`。`frontend/public/icons/icon-512.png`
     ベースの紺色の本アイコン。`AppIcon-512@2x.png` を 1024px 不透明 PNG に差し替え）。
-- **フェーズC（iOS プッシュ）— 進行中（2026-09-07〜）**。詳細な進捗は [PROGRESS.md](PROGRESS.md) 冒頭。
-  手順は [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
-  1. **APNs 認証キー = ✅**（Key ID `FZ3Z9S2384`、`.p8` は `WorkSpace/NovelShelf-secrets/`、Team ID `28Q7PP2X98`）。
-  2. **Firebase に iOS アプリ追加 = ✅**（`GoogleService-Info.plist` は secrets + Codemagic 環境変数
-     `GOOGLE_SERVICE_INFO_PLIST_B64` に登録済み）。
-  3. **Firebase に APNs キー登録 = ✅**。
-  4. **アプリ側コード = ✅**（`@capacitor/push-notifications` → `@capacitor-firebase/messaging` 両 OS 統一、
-     iOS entitlement / AppDelegate / plist 注入 / codemagic.yaml。バックエンド無改修。詳細は [PROGRESS.md](PROGRESS.md)）。
-  5. **残（要ユーザー）**:
-     - **App ID `jp.novelshelf.app` に Push Notifications capability を追加** → Save
-     - **`NovelShelf App Store` プロビジョニングプロファイルを作り直し**（Edit → 証明書 `novelshelf-dist` → Save →
-       Download → `WorkSpace/NovelShelf-secrets/` を上書き → Codemagic の iOS provisioning profiles で Fetch/Upload）
-     - Codemagic で **Start new build**（branch `main`）→ TestFlight → 実機で通知許可 → 設定「テスト通知を送る」で確認
-     - Android: v1.0.2 apk（versionCode 3）を実機へ入れ替えてプラグイン載せ替えの回帰確認（テスト通知）
+- **フェーズC（iOS プッシュ）— ✅ 完了（2026-09-07）**。詳細は [PROGRESS.md](PROGRESS.md) / [IOS_SETUP.md](IOS_SETUP.md)。
+  - APNs 認証キー（Key ID `FZ3Z9S2384`）/ Firebase に iOS アプリ追加 / Firebase に APNs キー登録 / App ID に
+    Push capability / App Store プロファイル作り直し（`aps-environment=production`）/ Codemagic 環境変数
+    `GOOGLE_SERVICE_INFO_PLIST_B64` — すべて完了。
+  - アプリ側: プッシュプラグインを `@capacitor/push-notifications` → **`@capacitor-firebase/messaging`（両 OS）** に
+    載せ替え（両 OS で FCM トークン。バックエンド無改修）。iOS entitlement / AppDelegate / plist 注入 / codemagic.yaml。
+  - TestFlight ビルドで「テスト通知を送る」→ 実機に通知到達を確認。
+  - **現行 Android apk = versionCode 4 / 1.0.3**（[ANDROID_SIGNING.md](ANDROID_SIGNING.md)）。
 - 開発環境: JDK 17 / Android SDK（導入済み）。iOS ビルドはクラウド（Codemagic）なので Mac 不要。
 
 **⚠️ 2026-09-06 の事故**: `git add -A` で配布証明書 `.p12`（秘密鍵入り）等を public リポジトリに

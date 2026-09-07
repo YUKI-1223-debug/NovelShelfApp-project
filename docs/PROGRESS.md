@@ -2,7 +2,15 @@
 
 最終更新: 2026-09-07
 
-## フェーズC（iOS プッシュ）着手（2026-09-07、進行中）
+## フェーズC（iOS プッシュ）= ✅ 完了（2026-09-07）／モバイルアプリ化 全フェーズ完了
+
+iOS 実機（TestFlight）で「テスト通知を送る」→ **通知が届くことを確認**（2026-09-07）。
+Android・iOS ともサーバープッシュ（ミニPCが毎日 07/19時に更新検知 → FCM → 端末、
+iOS は FCM が APNs へ中継）が実機で動作。**フェーズ0/A/B/C すべて完了**。
+
+polish 残（急がない）: iOS スプラッシュ画面が Capacitor デフォルト。
+
+### 経緯（2026-09-07、進行の記録）
 
 Android プッシュが実機で動いたので iOS プッシュへ。全体の流れ:
 ① APNs 認証キー作成（👤）→ ② Firebase に iOS アプリ追加（👤）→ ③ Firebase に APNs キー登録（👤）
@@ -34,13 +42,14 @@ Android プッシュが実機で動いたので iOS プッシュへ。全体の�
 - **⑤ 実機確認**:
   - Android = ✅ **OK**（2026-09-07、v1.0.2 / versionCode 3 を Xperia 10 VI へ。プラグイン
     `@capacitor-firebase/messaging` 載せ替え後もテスト通知が正常に届くことを確認）。
-  - iOS = 未。**要ユーザー先行**（下記）→ Codemagic ビルド → TestFlight → 実機で通知確認。
-- **⑤-前提（要ユーザー、iOS）**:
-  1. Apple Developer → Identifiers → `jp.novelshelf.app` → **Push Notifications** にチェック → Save
-  2. Profiles → `NovelShelf App Store` を Edit → 証明書 `novelshelf-dist` → Save → Download →
-     `WorkSpace/NovelShelf-secrets/NovelShelf_App_Store.mobileprovision` を上書き →
-     Codemagic の Code signing identities → iOS provisioning profiles で **Fetch/Upload**
-  3. Codemagic 環境変数 `GOOGLE_SERVICE_INFO_PLIST_B64`（group `firebase` / Secure）= ✅ 登録済み
+  - iOS = ✅ **OK**（2026-09-07、TestFlight ビルドで「テスト通知を送る」→ 通知到達を確認）。
+- **⑤-前提（要ユーザー、iOS）= すべて完了**:
+  1. App ID `jp.novelshelf.app` に Push Notifications capability 追加 ✅
+  2. `NovelShelf App Store` プロビジョニングプロファイル作り直し（`aps-environment=production` 入り、
+     CreationDate 2026-09-07）→ Codemagic に Fetch（reference `novelshelf_appstore`）✅
+  3. Codemagic 環境変数 `GOOGLE_SERVICE_INFO_PLIST_B64`（group `firebase` / Secure）✅
+- **⑥ 追加修正**: 設定の「テスト通知を送る」が `Capacitor.getPlatform() === "android"` 限定だったため
+  iOS で出ず → `Capacitor.isNativePlatform()` に変更（Android versionCode 4 / 1.0.3）。再ビルドで解消。
 
 ## 読書画面セーフエリア再修正（2026-09-07）
 
