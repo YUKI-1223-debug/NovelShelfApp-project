@@ -88,8 +88,9 @@
     外部ブラウザが開くか・読書画面ヘッダーの誤タップ・ログイン→本棚（API疎通）・
     縦書き/ページ送り/戻る。
     - 2026-09-07: `0ce3ff8` のセーフエリア修正が絶対配置の子に効いておらず、実機で本文が
-      まだステータスバーにかぶっていた（`ScreenShot/DSC_0231.JPG`）。原因と再修正は
-      [PROGRESS.md](PROGRESS.md) 冒頭。次の TestFlight ビルドで要確認。
+      まだステータスバーにかぶっていた（`ScreenShot/DSC_0231.JPG`）。原因と再修正
+      （commit `6ec89da`）は [PROGRESS.md](PROGRESS.md) 冒頭。**Web本番へはデプロイ済み**。
+      iOS 実機で「表示はいい感じ」と確認（2026-09-07）。ページ送り/横画面など網羅確認は残。
   - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。
   - アプリアイコンが Capacitor デフォルトのまま（Android は設定済み）。polish 項目。
 - **フェーズC（未着手）**: iOS プッシュ。APNs 認証キー（Apple）+ Firebase に iOS アプリ追加 +

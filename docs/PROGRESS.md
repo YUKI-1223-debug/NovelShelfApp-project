@@ -20,7 +20,11 @@ iOS 実機（TestFlight）で読書画面の本文がまだステータスバー
     margin なので見た目の内側余白は不変）。フッターの非表示 translate も
     `calc(100% + env(safe-area-inset-bottom))` にして下に完全に隠れるよう修正。
 - frontend: lint / tsc / `build:app`（静的エクスポート）成功。
+- **Web本番（ミニPC）へデプロイ済み**（2026-09-07、ユーザー実行）。
+  `https://novelshelf.jp` 配信の CSS に `.safe-inset-0`/`.safe-mt`/`.safe-mb`/`.safe-mx` が
+  含まれることを確認（Web は `env()` が 0 なので見た目は不変）。
 - **要ユーザー**: TestFlight 次ビルドで実機確認（縦/横、スクロール/ページ送り、縦書き/横書き）。
+  → 2026-09-07 ユーザー報告「表示はいい感じ」。実機で改善を確認。
 
 ### Codemagic の TestFlight post-processing 失敗（2026-09-07）
 
