@@ -6,6 +6,9 @@
 # Firebase サービスアカウント等の秘密ファイル（ミニPCデプロイ時にホストへ置く）
 /secrets/
 google-services.json
+# iOS の Firebase クライアント設定。Codemagic では GOOGLE_SERVICE_INFO_PLIST_B64（secure 環境変数）を
+# ビルド時にデコードして配置する（codemagic.yaml 参照）。原本は WorkSpace/NovelShelf-secrets/。
+GoogleService-Info.plist
 
 # App Store Connect API キー
 *.p8

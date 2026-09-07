@@ -9,18 +9,31 @@ import { routes } from "@/lib/routes";
 
 const LAST_TOKEN_KEY = "novelshelf.pushToken";
 
-// Capacitor の push プラグインの register() は google-services.json が無いと
-// ネイティブ側で FATAL 例外を投げてアプリごと落ちる。Firebase の設定ファイルを
-// android/app/ に配置してビルドするときだけ NEXT_PUBLIC_PUSH_ENABLED=true にする。
+// Firebase の設定ファイル（Android: google-services.json / iOS: GoogleService-Info.plist）が
+// 無いとネイティブ側の初期化で落ちるため、設定ファイルを同梱してビルドするときだけ
+// NEXT_PUBLIC_PUSH_ENABLED=true にする（build:app では既定で true）。
 const PUSH_ENABLED = process.env.NEXT_PUBLIC_PUSH_ENABLED === "true";
 
-// iOS は Firebase Messaging SDK / APNs 鍵 / GoogleService-Info.plist の整備が未完のため当面 Android のみ。
-// （iOS の @capacitor/push-notifications は APNs トークンを返すが、バックエンドは FCM トークンを期待する）
-const PUSH_PLATFORMS = new Set(["android"]);
+// @capacitor-firebase/messaging は Android / iOS の両方で FCM トークンを返す
+// （iOS は APNs → FCM をプラグイン内部でブリッジする）。バックエンドは一貫して FCM トークンを
+// 期待するため、iOS もこのプラグイン経由で登録する。
+const PUSH_PLATFORMS = new Set(["android", "ios"]);
+
+// アプリ側で作成する通知チャンネル ID（Android）。
+// バックエンド FirebasePushSender.ANDROID_CHANNEL_ID と一致させること。
+const ANDROID_CHANNEL_ID = "novelshelf-updates";
+
+function extractNovelId(data: unknown): string | null {
+  if (data && typeof data === "object" && "novelId" in data) {
+    const value = (data as Record<string, unknown>).novelId;
+    if (typeof value === "string" && value) return value;
+  }
+  return null;
+}
 
 // ネイティブアプリ（Capacitor）でのプッシュ通知のセットアップ。Web では何もしない。
 // - ログイン中: 権限リクエスト → FCM トークン取得 → サーバーへ登録
-// - ログアウト時: 登録済みトークンをサーバーから解除
+// - ログアウト時: 登録済みトークンをサーバーから解除し、端末側のトークンも破棄
 // - 通知タップ: data.novelId があればその作品画面へ遷移
 export function PushNotifications() {
   const { isAuthenticated, isReady } = useAuth();
@@ -33,65 +46,63 @@ export function PushNotifications() {
     if (!PUSH_PLATFORMS.has(Capacitor.getPlatform())) return;
     let cancelled = false;
 
+    const registerToken = (token: string) => {
+      registeredTokenRef.current = token;
+      try {
+        localStorage.setItem(LAST_TOKEN_KEY, token);
+      } catch {
+        /* プライベートモード等。登録自体は続行する */
+      }
+      const platform = Capacitor.getPlatform() === "ios" ? "IOS" : "ANDROID";
+      pushApi.registerDevice(platform, token).catch(() => {
+        // 失敗しても致命的ではない。次回起動時に再試行される。
+      });
+    };
+
     (async () => {
-      const { PushNotifications } = await import("@capacitor/push-notifications");
+      const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
 
       if (!listenersReadyRef.current) {
         listenersReadyRef.current = true;
 
-        // 音・ヘッドアップ表示が出る通知チャンネル（Android 8+）。
-        // ID はバックエンド FirebasePushSender.ANDROID_CHANNEL_ID と一致させること。
+        // 音・ヘッドアップ表示が出る通知チャンネル（Android 8+）。iOS では no-op。
         if (Capacitor.getPlatform() === "android") {
-          PushNotifications.createChannel({
-            id: "novelshelf-updates",
+          FirebaseMessaging.createChannel({
+            id: ANDROID_CHANNEL_ID,
             name: "作品の更新",
             description: "本棚の作品に新しい話が公開されたときの通知",
-            importance: 5,
-            visibility: 1,
+            importance: 5, // Importance.Max
+            visibility: 1, // Visibility.Public
             vibration: true,
           }).catch(() => {});
         }
 
-        await PushNotifications.addListener("registration", (token) => {
-          registeredTokenRef.current = token.value;
-          try {
-            localStorage.setItem(LAST_TOKEN_KEY, token.value);
-          } catch {
-            /* プライベートモード等。登録自体は続行する */
-          }
-          const platform = Capacitor.getPlatform() === "ios" ? "IOS" : "ANDROID";
-          pushApi.registerDevice(platform, token.value).catch(() => {
-            // 失敗しても致命的ではない。次回起動時に再試行される。
-          });
+        // トークンは初回だけでなくローテーションでも飛んでくる。届いたら都度サーバーへ登録し直す。
+        await FirebaseMessaging.addListener("tokenReceived", (event) => {
+          if (event.token) registerToken(event.token);
         });
 
-        await PushNotifications.addListener("registrationError", () => {
-          // 端末が FCM 非対応（GMS 無し等）。通知以外の機能はそのまま使える。
-        });
-
-        await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-          const novelId = action.notification.data?.novelId;
-          if (typeof novelId === "string" && novelId) {
-            router.push(routes.novel(novelId));
-          }
+        await FirebaseMessaging.addListener("notificationActionPerformed", (event) => {
+          const novelId = extractNovelId(event.notification.data);
+          if (novelId) router.push(routes.novel(novelId));
         });
       }
 
       if (isAuthenticated) {
         try {
-          const perm = await PushNotifications.checkPermissions();
-          let status = perm.receive;
+          let status = (await FirebaseMessaging.checkPermissions()).receive;
           if (status === "prompt" || status === "prompt-with-rationale") {
-            status = (await PushNotifications.requestPermissions()).receive;
+            status = (await FirebaseMessaging.requestPermissions()).receive;
           }
           if (!cancelled && status === "granted") {
-            await PushNotifications.register();
+            const { token } = await FirebaseMessaging.getToken();
+            if (!cancelled && token) registerToken(token);
           }
         } catch {
           // FCM 非対応端末・設定不備でも通知以外の機能は継続動作させる。
         }
       } else {
-        // ログアウト: 登録済みトークンを解除
+        // ログアウト: 登録済みトークンを解除し、端末側のトークンも破棄する。
         let token = registeredTokenRef.current;
         if (!token) {
           try {
@@ -108,6 +119,7 @@ export function PushNotifications() {
           } catch {
             /* noop */
           }
+          FirebaseMessaging.deleteToken().catch(() => {});
         }
       }
     })();

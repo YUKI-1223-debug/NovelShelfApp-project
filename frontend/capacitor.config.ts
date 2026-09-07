@@ -15,7 +15,15 @@ const config: CapacitorConfig = {
     CapacitorHttp: {
       enabled: true,
     },
+    // アプリが前面のときに届いた通知も OS のバナー/音で表示する（iOS）。
+    FirebaseMessaging: {
+      presentationOptions: ["alert", "badge", "sound"],
+    },
   },
+  // Capacitor 8 の iOS は Swift Package Manager ベース。@capacitor-firebase/messaging の
+  // Package.swift（firebase-ios-sdk を GitHub URL で参照）は `npx cap sync ios` が
+  // CapApp-SPM/Package.swift へ取り込む。プラグイン参照は既存の @capacitor/app と同じ
+  // node_modules への相対パス方式（symlink は使わない = Windows でも sync が通る）。
 };
 
 export default config;
