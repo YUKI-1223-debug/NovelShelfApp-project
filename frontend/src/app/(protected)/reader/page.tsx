@@ -751,17 +751,21 @@ function ReaderPageContent() {
   const effectivePadding = columnGap / 2;
 
   return (
-    // セーフエリア（ノッチ/ステータスバー/ホームインジケータ/横向き時の左右）はこの
-    // 最外周ラッパーのパディングで確保する。子は absolute inset-0 なのでパディング内に
-    // 収まり、本文の余白サイズ設定（paddingClass）やヘッダー/フッターの見た目を壊さない。
-    <div className="safe-pt safe-pb safe-px relative h-dvh overflow-hidden bg-background">
+    // セーフエリア（ノッチ/ステータスバー/ホームインジケータ/横向き時の左右）は、
+    // 絶対配置の子（本文スクロール領域・ヘッダー・フッター）それぞれで直接確保する。
+    // 最外周ラッパーに padding を付けても、子が position:absolute だと祖先の padding
+    // ボックスに対して配置されるため効かない（0ce3ff8 の想定違い。実機で本文が
+    // ステータスバーにかぶっていた）。
+    <div className="relative h-dvh overflow-hidden bg-background">
       <div
         ref={scrollRef}
         onClick={handleContentClick}
         onTouchStart={handleContentTouchStart}
         onTouchEnd={handleContentTouchEnd}
         className={
-          isPaged ? "absolute inset-0 overflow-hidden" : `absolute inset-0 overflow-auto ${paddingClass} py-6`
+          isPaged
+            ? "absolute safe-inset-0 overflow-hidden"
+            : `absolute safe-inset-0 overflow-auto ${paddingClass} py-6`
         }
       >
         {isLoading ? (
@@ -866,7 +870,7 @@ function ReaderPageContent() {
           chromeVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        <header className="flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
+        <header className="safe-mt safe-mx flex items-center justify-between border-b border-border bg-background px-4 py-2.5 text-sm">
           <div className="flex items-center gap-1">
             <button
               onClick={() => router.push(routes.novel(novelId))}
@@ -906,7 +910,7 @@ function ReaderPageContent() {
         </header>
 
         {showSettings && (
-          <div className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 text-xs">
+          <div className="safe-mx flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 text-xs">
             <button
               onClick={() => update({ writingMode: settings.writingMode === "VERTICAL" ? "HORIZONTAL" : "VERTICAL" })}
               className="rounded-full border border-border px-3 py-1"
@@ -957,8 +961,8 @@ function ReaderPageContent() {
       </div>
 
       <footer
-        className={`absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
-          chromeVisible ? "translate-y-0" : "translate-y-full"
+        className={`safe-mb safe-mx absolute inset-x-0 bottom-0 z-10 flex items-center justify-between border-t border-border bg-background px-4 py-2.5 transition-transform duration-200 ${
+          chromeVisible ? "translate-y-0" : "translate-y-[calc(100%+env(safe-area-inset-bottom))]"
         }`}
       >
         <button

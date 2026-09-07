@@ -108,6 +108,30 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+/* position:absolute の要素をセーフエリアぶん内側に寄せる（inset-0 の代わりに使う）。
+   絶対配置の要素は祖先の padding ボックスに対して配置されるため、祖先側に safe-pt 等の
+   padding を付けても inset-0 の子には効かない。オフセット自体を env() ぶん動かすことで
+   確実に内側へ寄せる。padding ではなく top/left/right/bottom を動かすので、要素側の
+   padding（本文余白設定など）と衝突しない。 */
+.safe-inset-0 {
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+}
+/* セーフエリアぶんを margin で確保する。要素側の padding（px-4 等の見た目の余白）を
+   打ち消さずに、要素全体をセーフエリアの内側へ寄せたいとき（読書画面のヘッダー/
+   フッター等）に使う。 */
+.safe-mt {
+  margin-top: env(safe-area-inset-top);
+}
+.safe-mb {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+.safe-mx {
+  margin-left: env(safe-area-inset-left);
+  margin-right: env(safe-area-inset-right);
+}
 
 .reader-text-mincho {
   font-family: var(--font-serif);

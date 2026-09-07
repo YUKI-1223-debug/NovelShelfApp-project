@@ -1,6 +1,26 @@
 # 進捗記録 (PROGRESS)
 
-最終更新: 2026-09-06
+最終更新: 2026-09-07
+
+## 読書画面セーフエリア再修正（2026-09-07）
+
+iOS 実機（TestFlight）で読書画面の本文がまだステータスバー/Dynamic Island にかぶる
+という報告（`ScreenShot/DSC_0231.JPG`、縦画面・縦書き・スクロールモード）。
+
+- **原因**: `0ce3ff8` でセーフエリアの padding を読書画面の最外周ラッパー
+  （`relative h-dvh`）へ移したが、その子（本文スクロール領域・ヘッダー・フッター）は
+  `position: absolute` + `inset-0`。**絶対配置の要素は祖先の padding ボックスに対して
+  配置される**ため、祖先に padding を付けても `inset-0` の子はセーフエリアぶん内側に
+  寄らず、padding は完全に無効だった（コミットメッセージの想定違い）。
+- **修正**（commit 予定）:
+  - `globals.css` に `.safe-inset-0`（`top/right/bottom/left` を `env(safe-area-inset-*)`
+    に）と `.safe-mt/.safe-mb/.safe-mx`（margin 版。要素の `px-4` 等を打ち消さない）を追加。
+  - 本文スクロール領域: `inset-0` → `safe-inset-0`。`px-6 py-6`（本文余白設定）と衝突しない。
+  - ヘッダー/設定パネル/フッター: `safe-mt/safe-mb/safe-mx` を付与（padding ではなく
+    margin なので見た目の内側余白は不変）。フッターの非表示 translate も
+    `calc(100% + env(safe-area-inset-bottom))` にして下に完全に隠れるよう修正。
+- frontend: lint / tsc / `build:app`（静的エクスポート）成功。
+- **要ユーザー**: TestFlight 次ビルドで実機確認（縦/横、スクロール/ページ送り、縦書き/横書き）。
 
 ## モバイルアプリ化 iOS: Codemagic 初回ビルド・署名整備（2026-09-06）
 
