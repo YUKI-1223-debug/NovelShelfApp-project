@@ -31,6 +31,13 @@ cd android
 `keystore.properties` が無いマシンでは署名がスキップされ、release は未署名 apk になる
 （`android/app/build.gradle` の `signingConfigs.release` 参照）。
 
+`frontend/android/local.properties`（git 管理外）が無いと `SDK location not found` で失敗する。
+中身は 1 行 `sdk.dir=C:/Users/yuuki/AppData/Local/Android/Sdk`（**フォワードスラッシュ**で書く。
+バックスラッシュはエスケープが要りハマる）。
+
+現在の配布版: **versionCode 2 / versionName 1.0.1**（2026-09-07、セーフエリア修正 `6ec89da` 込み）。
+再ビルドのたびに `build.gradle` の `versionCode` を +1 する。
+
 ## 実機インストール
 
 初回、または debug 版から切り替えるときは署名が変わるため**アンインストールしてから**入れる:
