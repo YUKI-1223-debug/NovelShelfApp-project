@@ -90,7 +90,7 @@
     いた（`ScreenShot/DSC_0231.JPG`）→ commit `6ec89da` で `.safe-inset-0`/margin 版に再修正
     → ビルド `f483c264` で解消を確認。Web 本番へもデプロイ済み。
   - iOS のプッシュは当面無効（`PushNotifications.tsx` で android 限定）。→ フェーズC。
-  - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `<この後>`。`frontend/public/icons/icon-512.png`
+  - **アプリアイコン = ✅ 設定済み**（2026-09-07、commit `7347191`。`frontend/public/icons/icon-512.png`
     ベースの紺色の本アイコン。`AppIcon-512@2x.png` を 1024px 不透明 PNG に差し替え）。
 - **フェーズC（iOS プッシュ）— 次の着手対象**。手順は [IOS_SETUP.md](IOS_SETUP.md) フェーズC。
   - **要ユーザー（先にこれ）**:
