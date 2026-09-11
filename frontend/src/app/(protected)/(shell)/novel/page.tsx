@@ -20,6 +20,7 @@ import {
 } from "@/lib/api";
 import { downloadNovelOffline, type DownloadProgress } from "@/lib/offline/downloadNovel";
 import { getCachedNovelMeta, putCachedNovelMeta } from "@/lib/offline/novelMetaCache";
+import { getCachedPosition, putCachedPosition } from "@/lib/offline/positionCache";
 import { getCachedShelf } from "@/lib/offline/shelfCache";
 import { routes } from "@/lib/routes";
 import { externalLinkProps } from "@/lib/utils/externalLink";
@@ -63,20 +64,20 @@ function NovelDetailContent() {
       if (!opts?.silent) setIsLoading(true);
       setError(null);
       try {
-        const [novelRes, chaptersRes, shelfList] = await Promise.all([
+        // getPosition は他の取得と並列化する（従来は Promise.all の後に直列で待っていたため、
+        // その分だけ「読み始める」の誤表示・ボタン無反応が長引いていた。2026-09-12対応）。
+        const [novelRes, chaptersRes, shelfList, positionRes] = await Promise.all([
           novelsApi.detail(novelId),
           novelsApi.chapters(novelId),
           shelfApi.list(),
+          readingApi.getPosition(novelId).catch(() => null),
         ]);
         setNovel(novelRes);
         setChapters(chaptersRes);
         setShelfEntry(shelfList.find((e) => e.novel.id === novelId) ?? null);
         putCachedNovelMeta(novelId, novelRes, chaptersRes).catch(() => {});
-        try {
-          setPosition(await readingApi.getPosition(novelId));
-        } catch {
-          setPosition(null);
-        }
+        setPosition(positionRes);
+        if (positionRes) putCachedPosition(novelId, positionRes).catch(() => {});
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -95,7 +96,11 @@ function NovelDetailContent() {
     if (hydratedRef.current || !novelId) return;
     hydratedRef.current = true;
     (async () => {
-      const [meta, shelf] = await Promise.all([getCachedNovelMeta(novelId), getCachedShelf()]);
+      const [meta, shelf, cachedPosition] = await Promise.all([
+        getCachedNovelMeta(novelId),
+        getCachedShelf(),
+        getCachedPosition(novelId),
+      ]);
       if (meta) {
         setNovel(meta.detail);
         setChapters(meta.chapters);
@@ -104,6 +109,9 @@ function NovelDetailContent() {
       if (shelf) {
         setShelfEntry(shelf.find((e) => e.novel.id === novelId) ?? null);
       }
+      // 「続きから読む」/「読み始める」の判定に使う。サーバー往復を待たず、キャッシュ済みなら
+      // 即反映する(load()側の最新値取得でどのみち上書きされる)。
+      if (cachedPosition) setPosition(cachedPosition);
     })().catch(() => {});
   }, [novelId]);
 

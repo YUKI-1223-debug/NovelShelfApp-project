@@ -9,6 +9,7 @@ import { ApiError, novelsApi, readingApi, shelfApi } from "@/lib/api";
 import type { BookshelfEntry, Chapter } from "@/lib/api";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getCachedChapter, putCachedChapter } from "@/lib/offline/chapterCache";
+import { getCachedPosition, putCachedPosition } from "@/lib/offline/positionCache";
 import { queuePendingPosition } from "@/lib/offline/positionQueue";
 import { routes } from "@/lib/routes";
 
@@ -241,14 +242,30 @@ function ReaderPageContent() {
         window.history.replaceState(null, "", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
       } else {
         // 読書位置はレイアウトの復元に必要なので、本文を描画する前に確定させる。
-        try {
-          const pos = await readingApi.getPosition(novelId);
-          if (cancelled) return;
-          if (pos.chapterId === chapterId) {
-            restoreFractionRef.current = pos.scrollPosition / 100;
+        // ただし毎回サーバーへ取りに行くと、ネットワークが遅い/再接続直後（長時間バック
+        // グラウンド後にフォアグラウンド復帰した直後など）に本文表示・ボタン操作が
+        // 数百ms〜1秒以上止まって見える不具合があった（2026-09-12、ユーザー報告）。
+        // ローカルキャッシュがあれば即座にそれを使い、サーバーからの最新値は裏で取得して
+        // キャッシュを更新するに留める（表示済みの位置を後から動かして「読んでいる最中に
+        // 飛ぶ」体験にはしない。キャッシュが無い＝この端末で初めて開く話などの場合のみ、
+        // 従来どおりサーバー応答を待つ）。
+        const cachedPos = await getCachedPosition(novelId);
+        if (cancelled) return;
+        const posPromise = readingApi.getPosition(novelId);
+        if (cachedPos && cachedPos.chapterId === chapterId) {
+          restoreFractionRef.current = cachedPos.scrollPosition / 100;
+          posPromise.then((pos) => putCachedPosition(novelId, pos)).catch(() => {});
+        } else {
+          try {
+            const pos = await posPromise;
+            if (cancelled) return;
+            if (pos.chapterId === chapterId) {
+              restoreFractionRef.current = pos.scrollPosition / 100;
+            }
+            putCachedPosition(novelId, pos).catch(() => {});
+          } catch {
+            /* 位置が取れなければ先頭から */
           }
-        } catch {
-          /* 位置が取れなければ先頭から */
         }
       }
 
@@ -514,6 +531,11 @@ function ReaderPageContent() {
   const saveProgress = useCallback(() => {
     if (!scrollRef.current) return;
     const scrollPosition = computeScrollFraction();
+    // ローカルキャッシュは送信の成否を待たずその場で更新する(オフラインでサーバー送信が
+    // 後回しになっても、この端末での次回表示は常に最新のスクロール位置を即使えるように)。
+    putCachedPosition(novelId, { novelId, chapterId, scrollPosition, lastReadAt: new Date().toISOString() }).catch(
+      () => {}
+    );
     readingApi.putPosition(novelId, chapterId, scrollPosition).catch((err) => {
       // オフライン等でネットワーク自体が失敗した場合のみキューに積む。
       // ApiError（401など、サーバーが応答した上での失敗）は再試行しても直らないためキューに積まない。

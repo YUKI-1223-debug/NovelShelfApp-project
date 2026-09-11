@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiFetch } from "./client";
-import { clearTokens, setTokens, setUnauthorizedHandler } from "./tokenStore";
+import { clearTokens, getAccessToken, getRefreshToken, setTokens, setUnauthorizedHandler } from "./tokenStore";
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -86,5 +86,29 @@ describe("apiFetch", () => {
 
     await expect(apiFetch("/shelf")).rejects.toBeInstanceOf(ApiError);
     expect(onUnauthorized).toHaveBeenCalled();
+  });
+
+  // 長時間放置後の復帰直後などに起きがちな「リフレッシュ通信自体が失敗する」ケース。
+  // リフレッシュトークンがサーバーに拒否されたわけではないので、ログアウトさせてはいけない
+  // (2026-09-12、ユーザー報告: 長時間放置でホーム画面〈ログイン画面〉に戻されてしまう不具合)。
+  it("does not log the user out when the refresh request itself fails (network error)", async () => {
+    setTokens("expired-access-token", "still-valid-refresh-token");
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/auth/refresh")) {
+          throw new TypeError("Failed to fetch");
+        }
+        return jsonResponse(401, { message: "unauthorized" });
+      })
+    );
+
+    await expect(apiFetch("/shelf")).rejects.not.toBeInstanceOf(ApiError);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe("expired-access-token");
+    expect(getRefreshToken()).toBe("still-valid-refresh-token");
   });
 });
