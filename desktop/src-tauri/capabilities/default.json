@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "メインウィンドウ: ミニPCの tailnet 入口(:8445)への HTTP と、ウィンドウの位置・大きさの保存だけを許可する",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://minipc.tail0347f4.ts.net:8445/*" }]
+    },
+    "window-state:default"
+  ]
+}

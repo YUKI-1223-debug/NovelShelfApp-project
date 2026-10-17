@@ -1,0 +1,19 @@
+[package]
+name = "novelshelf-desktop"
+version = "1.0.0"
+description = "NovelShelf — Windows デスクトップアプリ"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-http = "~2.6"  # frontend の @tauri-apps/plugin-http 2.6.0 と版をそろえる
+tauri-plugin-window-state = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "novelshelf-desktop"
+path = "src/main.rs"
