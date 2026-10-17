@@ -32,7 +32,9 @@ public class ReadingController {
         }
     }
 
-    public record UpdatePositionRequest(@NotNull UUID chapterId, @NotNull Float scrollPosition) {}
+    /** {@code clientUpdatedAt}: 端末でその位置を読んだ時刻(省略可。古いアプリは送らない)。ReadingService#savePosition 参照 */
+    public record UpdatePositionRequest(
+            @NotNull UUID chapterId, @NotNull Float scrollPosition, Instant clientUpdatedAt) {}
 
     public record RecordHistoryRequest(
             @NotNull UUID chapterId, @NotNull Instant readAt, @NotNull Integer durationSeconds) {}
@@ -49,7 +51,8 @@ public class ReadingController {
     public ReadingPositionResponse putPosition(
             @PathVariable UUID novelId, @Valid @RequestBody UpdatePositionRequest request, @AuthenticationPrincipal UUID userId) {
         ReadingPosition position =
-                readingService.savePosition(userId, novelId, request.chapterId(), request.scrollPosition());
+                readingService.savePosition(
+                        userId, novelId, request.chapterId(), request.scrollPosition(), request.clientUpdatedAt());
         return ReadingPositionResponse.from(position);
     }
 

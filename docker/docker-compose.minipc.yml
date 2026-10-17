@@ -7,7 +7,7 @@
 #   - nginx / certbot を含まない（TLS 終端は Cloudflare エッジ。リバースプロキシは /srv/edge の共有 Caddy）
 #   - frontend / backend を Docker 外部ネットワーク "edge" にエイリアス付きで参加させ、共有 Caddy から
 #     novelshelf-backend:8080 / novelshelf-frontend:3000 で到達できるようにする
-#   - ホストにはポートを一切 publish しない（postgres も含む）
+#   - postgres はホストにポートを出さない。backend は 127.0.0.1:8020 だけに出す（tailscale serve :8445 用、2026-10〜）
 #
 # 前提: 事前に `docker network create edge` 済み（/srv/edge のスタックが作成する）。
 # 移設手順は docs/MIGRATION_to_minipc.md、ミニPC全体は WorkSpace/ミニPC-Linux移行手順.md を参照。
@@ -22,8 +22,24 @@ services:
 
   backend:
     restart: unless-stopped
-    ports: !reset []          # 共有 Caddy 経由でのみ到達可能
+    # 127.0.0.1:8020 だけで待ち受け、`tailscale serve --https=8445` で tailnet 内にだけ出す(個人利用アプリ化 S2-1)。
+    # novelshelf.jp を閉じるまでは、共有 Caddy(edge ネットワーク)からの経路も残す
+    ports: !override
+      - "127.0.0.1:8020:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     environment:
+      # オーナー固定モード: tailnet 由来でトークンの無いリクエストを OWNER_USER_ID として扱う(ログイン画面の廃止)
+      OWNER_MODE_ENABLED: ${OWNER_MODE_ENABLED:-false}
+      OWNER_USER_ID: ${OWNER_USER_ID:-}
+      TAILNET_CIDRS: 100.64.0.0/10,fd7a:115c:a1e0::/48
+      # Web 版のオリジンに加えて、Windows(Tauri)の http://tauri.localhost を許可する。Tauri の plugin-http は
+      # Origin ヘッダを付けて送るので、許可しないと 403 になる(JavaSilver で 2026-10-18 に発生)。
+      # iOS/Android は CapacitorHttp が Origin を付けないので不要だが、念のため入れておく
+      CORS_ALLOWED_ORIGINS: https://${DOMAIN},capacitor://localhost,https://localhost,http://tauri.localhost
       # メモリの潤沢な機体だが、現行VPS(2GB)と挙動を揃えるためJVMヒープ上限は据え置き
       JAVA_TOOL_OPTIONS: "-Xmx768m"
       # パスワード再設定メールのリンク生成に使う。本番ドメインから自動導出する

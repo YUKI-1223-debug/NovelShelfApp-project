@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -21,7 +20,7 @@ import org.springframework.stereotype.Component;
  * 端末へプッシュ通知を送る。
  *
  * <p>外部サイトへのアクセス頻度は各サイトアダプタのレートリミッタ（全体1req/秒）と
- * ジョブ間隔（{@code novelshelf.push.update-check-cron}、既定1日2回）で抑える。
+ * ジョブ間隔（{@code novelshelf.push.update-check-times}、既定 8:00 / 19:00 の1日2回。UpdateCheckScheduler）で抑える。
  * 「必要な分だけ間隔を空けて取得する」方針（docs/DECISIONS.md）を維持すること。
  */
 @Component
@@ -54,7 +53,7 @@ public class NovelUpdateNotifier {
         this.pushSender = pushSender;
     }
 
-    @Scheduled(cron = "${novelshelf.push.update-check-cron:0 0 7,19 * * *}", zone = "Asia/Tokyo")
+    /** 決まった時刻の実行。起動するのは UpdateCheckScheduler(休止しても遅れないよう壁時計で判定する)。 */
     public void scheduledRun() {
         Summary summary = run();
         log.info("更新通知ジョブ完了: 対象{} / 更新あり{} / 通知送信{}件",
