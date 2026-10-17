@@ -21,9 +21,15 @@ workflows:
     environment:
       groups:
         - firebase
+      # 本体(jp.novelshelf.app)と Share Extension(jp.novelshelf.app.ShareExtension、2026-10 追加)の2つの
+      # App Store プロファイルを使うので、bundle_identifier の自動選択ではなく参照名で明示する。
+      # 参照名は Codemagic の Code signing identities で付けた名前(docs/IOS_SETUP.md ステップ5・7)
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: jp.novelshelf.app
+        provisioning_profiles:
+          - novelshelf_appstore
+          - novelshelf_share_appstore
+        certificates:
+          - novelshelf-dist
       vars:
         APP_STORE_APP_ID: "6809167553"
         XCODE_SCHEME: "App"
@@ -45,6 +51,10 @@ workflows:
         script: cd frontend && npm run build:app
       - name: Capacitor sync（iOS へ web アセット反映）
         script: cd frontend && npx cap sync ios
+      - name: Share Extension を Xcode プロジェクトに追加
+        # Mac が無く Xcode でターゲットを足せないため、ビルドのたびに xcodeproj gem で追加する
+        # (個人利用アプリ化 S2-8。中身は frontend/ios/App/ShareExtension/)。use-profiles より前に行うこと
+        script: ruby scripts/add_share_extension.rb frontend/ios/App/App.xcodeproj
       - name: 署名設定を Xcode プロジェクトへ適用
         # ios_signing が配置した証明書・プロファイルを App.xcodeproj に反映し、
         # build-ipa が既定で参照する /Users/builder/export_options.plist を生成する。

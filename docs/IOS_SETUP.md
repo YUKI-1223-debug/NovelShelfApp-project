@@ -79,6 +79,25 @@ GitHub push → Codemagic(クラウド Mac) → npm ci → web ビルド → cap
    （またはビルドを「自分用」ベータグループに割り当て）
 3. iPhone の TestFlight アプリに `NovelShelf` が出る → インストール
 4. ログイン → 本棚 → 読書 → 端末間同期（Android と同じ位置から開くか）を確認
+   （2026-10 にログインは廃止。Tailscale を ON にして起動すればそのまま本棚が出る）
+
+### 7. Share Extension（共有シートの「NovelShelf」、2026-10 追加）
+
+Safari などの共有シートから作品ページを NovelShelf の本棚に追加する。中身は `frontend/ios/App/ShareExtension/`
+（`ShareViewController.swift` が API に直接「作品の解決 → 本棚に追加」を送る。ログインが無いので App Group は不要）。
+Mac が無く Xcode でターゲットを足せないため、Codemagic のビルド中に `scripts/add_share_extension.rb`
+（xcodeproj gem）で App.xcodeproj に追加する。Extension は本体とは別の Bundle ID なので、署名の準備が別に要る:
+
+1. **App ID を作る**: https://developer.apple.com/account/resources/identifiers/list → ＋ → App IDs → App →
+   Description `NovelShelf Share Extension` / Bundle ID **Explicit** `jp.novelshelf.app.ShareExtension` →
+   Capabilities は何も付けない → Register
+2. **App Store プロファイルを作る**: Profiles → ＋ → Distribution → **App Store Connect** →
+   App ID `jp.novelshelf.app.ShareExtension` → 証明書 = ステップ5 と同じ Apple Distribution 証明書 →
+   名前 `NovelShelf Share App Store` → Generate
+3. **Codemagic に取り込む**: Code signing identities → iOS provisioning profiles → Fetch profiles
+   （API key `novelshelf-appstore`）→ `NovelShelf Share App Store` を reference name **`novelshelf_share_appstore`** で取り込む
+4. `codemagic.yaml` の `ios_signing` は、本体と Extension のプロファイル（`novelshelf_appstore`・`novelshelf_share_appstore`）と
+   証明書（`novelshelf-dist`）を参照名で指定している。参照名が違うとビルドの最初で失敗する
 
 ---
 
