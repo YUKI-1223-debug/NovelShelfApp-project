@@ -21,15 +21,13 @@ workflows:
     environment:
       groups:
         - firebase
-      # 本体(jp.novelshelf.app)と Share Extension(jp.novelshelf.app.ShareExtension、2026-10 追加)の2つの
-      # App Store プロファイルを使うので、bundle_identifier の自動選択ではなく参照名で明示する。
-      # 参照名は Codemagic の Code signing identities で付けた名前(docs/IOS_SETUP.md ステップ5・7)
+      # 本体(jp.novelshelf.app)と Share Extension(jp.novelshelf.app.ShareExtension、2026-10 追加)の
+      # App Store プロファイルは、bundle_identifier に合うもの(この ID で始まる Extension 用も含む)を
+      # Codemagic が自動で選ぶ。参照名で明示する方式(provisioning_profiles / certificates)は、
+      # 2026-10-18 に「certificate 'novelshelf-dist' が見つからない」(候補には同じ名前が出ている)で失敗したので使わない
       ios_signing:
-        provisioning_profiles:
-          - novelshelf_appstore
-          - novelshelf_share_appstore
-        certificates:
-          - novelshelf-dist
+        distribution_type: app_store
+        bundle_identifier: jp.novelshelf.app
       vars:
         APP_STORE_APP_ID: "6809167553"
         XCODE_SCHEME: "App"

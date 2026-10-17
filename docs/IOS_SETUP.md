@@ -96,8 +96,8 @@ Mac が無く Xcode でターゲットを足せないため、Codemagic のビ�
    名前 `NovelShelf Share App Store` → Generate
 3. **Codemagic に取り込む**: Code signing identities → iOS provisioning profiles → Fetch profiles
    （API key `novelshelf-appstore`）→ `NovelShelf Share App Store` を reference name **`novelshelf_share_appstore`** で取り込む
-4. `codemagic.yaml` の `ios_signing` は、本体と Extension のプロファイル（`novelshelf_appstore`・`novelshelf_share_appstore`）と
-   証明書（`novelshelf-dist`）を参照名で指定している。参照名が違うとビルドの最初で失敗する
+4. `codemagic.yaml` の `ios_signing` は `distribution_type: app_store` ＋ `bundle_identifier: jp.novelshelf.app` で、本体と Extension のプロファイルを Codemagic が自動で選ぶ
+   （参照名で指定する方式は 2026-10-18 に証明書が見つからないエラーで失敗したので使っていない）
 
 ---
 
