@@ -22,6 +22,8 @@ function extractUrl(searchParams: URLSearchParams): string | null {
 
 function SharePageContent() {
   const searchParams = useSearchParams();
+  // 起動中のアプリに2回目の共有が届いたときは同じ画面のままクエリだけ変わるので、URL が変わったら処理し直す
+  const url = extractUrl(searchParams);
   const [result, setResult] = useState<Result>({ status: "loading" });
 
   useEffect(() => {
@@ -29,8 +31,8 @@ function SharePageContent() {
     (async () => {
       await Promise.resolve();
       if (cancelled) return;
+      setResult({ status: "loading" });
 
-      const url = extractUrl(searchParams);
       if (!url) {
         setResult({ status: "error", message: "共有されたURLが見つかりませんでした。" });
         return;
@@ -52,8 +54,7 @@ function SharePageContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [url]);
 
   return (
     <div className="safe-pt safe-pb safe-px flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
