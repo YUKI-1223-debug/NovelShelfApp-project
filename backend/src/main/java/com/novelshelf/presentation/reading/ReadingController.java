@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -50,9 +51,17 @@ public class ReadingController {
     @PutMapping("/positions/{novelId}")
     public ReadingPositionResponse putPosition(
             @PathVariable UUID novelId, @Valid @RequestBody UpdatePositionRequest request, @AuthenticationPrincipal UUID userId) {
-        ReadingPosition position =
-                readingService.savePosition(
-                        userId, novelId, request.chapterId(), request.scrollPosition(), request.clientUpdatedAt());
+        ReadingPosition position;
+        try {
+            position = readingService.savePosition(
+                    userId, novelId, request.chapterId(), request.scrollPosition(), request.clientUpdatedAt());
+        } catch (DataIntegrityViolationException e) {
+            // まだ読書位置が無い作品に PUT が2つ同時に届くと、両方が INSERT して一意制約
+            // (uq_reading_positions_user_novel)で片方が失敗する(2026-10-18 に本番で発生)。
+            // その時点で行はできているので、もう一度だけ保存すれば UPDATE(時刻の比較つき)になる
+            position = readingService.savePosition(
+                    userId, novelId, request.chapterId(), request.scrollPosition(), request.clientUpdatedAt());
+        }
         return ReadingPositionResponse.from(position);
     }
 
