@@ -38,8 +38,12 @@ services:
       TAILNET_CIDRS: 100.64.0.0/10,fd7a:115c:a1e0::/48
       # Web 版のオリジンに加えて、Windows(Tauri)の http://tauri.localhost を許可する。Tauri の plugin-http は
       # Origin ヘッダを付けて送るので、許可しないと 403 になる(JavaSilver で 2026-10-18 に発生)。
-      # iOS/Android は CapacitorHttp が Origin を付けないので不要だが、念のため入れておく
-      CORS_ALLOWED_ORIGINS: https://${DOMAIN},capacitor://localhost,https://localhost,http://tauri.localhost
+      # iOS/Android は CapacitorHttp が Origin を付けないので不要だが、念のため入れておく。
+      # chrome-extension://noknmckhajflpgeidknhdadldnfiedin はブラウザ拡張(manifest の key で ID を固定)。
+      # 注意: オーナー固定モードは「tailnet から来た」だけで認証するので、PC のブラウザで開いた別のサイトから
+      # tailnet の URL を叩かれる経路がある。Spring は許可していないオリジンのリクエストを 403 で止めるので、
+      # ここを "*" やワイルドカードにしないこと
+      CORS_ALLOWED_ORIGINS: https://${DOMAIN},capacitor://localhost,https://localhost,http://tauri.localhost,chrome-extension://noknmckhajflpgeidknhdadldnfiedin
       # メモリの潤沢な機体だが、現行VPS(2GB)と挙動を揃えるためJVMヒープ上限は据え置き
       JAVA_TOOL_OPTIONS: "-Xmx768m"
       # パスワード再設定メールのリンク生成に使う。本番ドメインから自動導出する

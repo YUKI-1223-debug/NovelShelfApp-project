@@ -1,34 +1,23 @@
-const loginForm = document.getElementById("loginForm");
-const loggedIn = document.getElementById("loggedIn");
 const status = document.getElementById("status");
+const retryBtn = document.getElementById("retryBtn");
 
-function render(authenticated) {
-  loginForm.style.display = authenticated ? "none" : "block";
-  loggedIn.style.display = authenticated ? "block" : "none";
-}
-
-chrome.runtime.sendMessage({ type: "CHECK_AUTH" }, (res) => render(!!res?.authenticated));
-
-document.getElementById("loginBtn").addEventListener("click", () => {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-  status.textContent = "";
+function check() {
+  status.textContent = "接続を確認しています…";
   status.className = "";
-  if (!email || !password) {
-    status.textContent = "メールアドレスとパスワードを入力してください。";
-    status.className = "error";
-    return;
-  }
-  chrome.runtime.sendMessage({ type: "LOGIN", email, password }, (res) => {
-    if (res?.ok) {
-      render(true);
+  retryBtn.style.display = "none";
+  chrome.runtime.sendMessage({ type: "CHECK_CONNECTION" }, (res) => {
+    if (res?.connected) {
+      status.textContent =
+        "接続できています。なろう・カクヨム・ハーメルンの作品ページを開くと、右下に「本棚に追加」ボタンが表示されます。";
+      status.className = "ok";
     } else {
-      status.textContent = res?.message || "ログインに失敗しました。";
+      status.textContent =
+        "サーバーに接続できません。Tailscale が ON か確認してください（平日 1:00〜7:00 はミニPCが休止中です）。";
       status.className = "error";
+      retryBtn.style.display = "block";
     }
   });
-});
+}
 
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "LOGOUT" }, () => render(false));
-});
+retryBtn.addEventListener("click", check);
+check();
