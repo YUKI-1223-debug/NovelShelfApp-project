@@ -7,12 +7,6 @@ export type PageMode = "PAGINATION" | "SCROLL";
 export type ShelfSortOrder = "ADDED_DESC" | "RECENT_DESC";
 export type PageTurnGesture = "TAP" | "SWIPE";
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
 export interface Site {
   id: string;
   code: SiteCode;

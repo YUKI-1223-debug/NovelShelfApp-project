@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "build:app": "cross-env NEXT_OUTPUT=export NEXT_PUBLIC_API_BASE_URL=https://novelshelf.jp/api/v1 NEXT_PUBLIC_PUSH_ENABLED=true next build",
+    "build:app": "cross-env NEXT_OUTPUT=export NEXT_PUBLIC_API_BASE_URL=https://minipc.tail0347f4.ts.net:8445/api/v1 NEXT_PUBLIC_PUSH_ENABLED=true next build",
     "sync:android": "npm run build:app && cap sync android",
     "open:android": "cap open android"
   },
@@ -20,6 +20,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/ios": "^8.5.1",
+    "@tauri-apps/plugin-http": "2.6.0",
     "firebase": "^12.18.0",
     "next": "16.2.10",
     "react": "19.2.4",

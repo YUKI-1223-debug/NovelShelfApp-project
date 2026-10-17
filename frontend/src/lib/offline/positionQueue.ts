@@ -15,13 +15,15 @@ export interface PendingPosition {
 export async function queuePendingPosition(
   novelId: string,
   chapterId: string,
-  scrollPosition: number
+  scrollPosition: number,
+  // その位置を読んだ時刻(ミリ秒)。送信に失敗してから積むまでの時間差を含めないよう、呼び出し側で渡す
+  readAt: number = Date.now()
 ): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put({ novelId, chapterId, scrollPosition, queuedAt: Date.now() });
+    tx.objectStore(STORE_NAME).put({ novelId, chapterId, scrollPosition, queuedAt: readAt });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -58,7 +60,8 @@ export async function flushPendingPositions(): Promise<void> {
   const pending = await getPendingPositions();
   for (const p of pending) {
     try {
-      await readingApi.putPosition(p.novelId, p.chapterId, p.scrollPosition);
+      // queuedAt(読んだ時刻)を送るので、別の端末でもっと先まで読んでいれば、サーバーはこの古い位置を無視する
+      await readingApi.putPosition(p.novelId, p.chapterId, p.scrollPosition, new Date(p.queuedAt).toISOString());
       await clearPendingPosition(p.novelId);
     } catch (err) {
       if (err instanceof ApiError) {

@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiFetch } from "./client";
-import { clearTokens, getAccessToken, getRefreshToken, setTokens, setUnauthorizedHandler } from "./tokenStore";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError, apiFetch, NETWORK_ERROR_EVENT } from "./client";
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -10,105 +9,79 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 describe("apiFetch", () => {
-  beforeEach(() => {
-    clearTokens();
-    setUnauthorizedHandler(() => {});
-  });
-
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("returns parsed JSON on success", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse(200, { hello: "world" }))
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { hello: "world" })));
 
-    const result = await apiFetch<{ hello: string }>("/ping", { auth: false });
+    const result = await apiFetch<{ hello: string }>("/ping");
 
     expect(result).toEqual({ hello: "world" });
   });
 
   it("throws ApiError with the server message on failure", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse(404, { message: "見つかりません" }))
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(404, { message: "見つかりません" })));
 
-    await expect(apiFetch("/missing", { auth: false })).rejects.toMatchObject({
-      status: 404,
-      message: "見つかりません",
-    });
+    await expect(apiFetch("/missing")).rejects.toMatchObject({ status: 404, message: "見つかりません" });
   });
 
-  it("automatically refreshes the access token once on 401 and retries", async () => {
-    setTokens("expired-access-token", "valid-refresh-token");
+  it("does not send an Authorization header (login is replaced by owner mode)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    vi.stubGlobal("fetch", fetchMock);
 
-    let callCount = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        callCount++;
-        if (url.includes("/auth/refresh")) {
-          return jsonResponse(200, {
-            accessToken: "new-access-token",
-            refreshToken: "new-refresh-token",
-            expiresIn: 1800,
-          });
-        }
-        if (callCount === 1) {
-          return jsonResponse(401, { message: "unauthorized" });
-        }
-        return jsonResponse(200, { ok: true });
-      })
-    );
+    await apiFetch("/shelf");
 
-    const result = await apiFetch<{ ok: boolean }>("/shelf");
-
-    expect(result).toEqual({ ok: true });
+    const [, init] = fetchMock.mock.calls[0];
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
-  it("calls the unauthorized handler when refresh fails", async () => {
-    setTokens("expired-access-token", "invalid-refresh-token");
-    const onUnauthorized = vi.fn();
-    setUnauthorizedHandler(onUnauthorized);
+  it("maps 401 to ApiError(401) without retrying or refreshing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(401, { message: "unauthorized" }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (url.includes("/auth/refresh")) {
-          return jsonResponse(401, { message: "invalid refresh token" });
-        }
-        return jsonResponse(401, { message: "unauthorized" });
-      })
-    );
-
-    await expect(apiFetch("/shelf")).rejects.toBeInstanceOf(ApiError);
-    expect(onUnauthorized).toHaveBeenCalled();
+    await expect(apiFetch("/shelf")).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  // 長時間放置後の復帰直後などに起きがちな「リフレッシュ通信自体が失敗する」ケース。
-  // リフレッシュトークンがサーバーに拒否されたわけではないので、ログアウトさせてはいけない
-  // (2026-09-12、ユーザー報告: 長時間放置でホーム画面〈ログイン画面〉に戻されてしまう不具合)。
-  it("does not log the user out when the refresh request itself fails (network error)", async () => {
-    setTokens("expired-access-token", "still-valid-refresh-token");
-    const onUnauthorized = vi.fn();
-    setUnauthorizedHandler(onUnauthorized);
+  it("retries GET up to twice on network errors", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (url.includes("/auth/refresh")) {
-          throw new TypeError("Failed to fetch");
-        }
-        return jsonResponse(401, { message: "unauthorized" });
-      })
-    );
+    await expect(apiFetch("/shelf")).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 
-    await expect(apiFetch("/shelf")).rejects.not.toBeInstanceOf(ApiError);
-    expect(onUnauthorized).not.toHaveBeenCalled();
-    expect(getAccessToken()).toBe("expired-access-token");
-    expect(getRefreshToken()).toBe("still-valid-refresh-token");
+  it("does not retry PUT, throws a plain Error (retriable for offline queues) and reports it", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+    const listener = vi.fn();
+    window.addEventListener(NETWORK_ERROR_EVENT, listener);
+
+    const error = await apiFetch("/reading/positions/x", { method: "PUT", body: {} }).catch((e: unknown) => e);
+
+    // ApiError でないこと: downloadNovel.ts / positionQueue.ts は「ApiError でない = 通信の失敗」として再試行する
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(NETWORK_ERROR_EVENT, listener);
+  });
+
+  it("times out when the server does not answer", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => new Promise(() => {})));
+
+    const promise = apiFetch("/shelf", { method: "POST", timeoutMs: 1_000 });
+    const assertion = expect(promise).rejects.not.toBeInstanceOf(ApiError);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await assertion;
   });
 });

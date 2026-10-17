@@ -1,6 +1,5 @@
 import { apiFetch } from "./client";
 import type {
-  AuthTokens,
   Bookmark,
   BookshelfEntry,
   Chapter,
@@ -16,18 +15,6 @@ import type {
   Tag,
   UserSettings,
 } from "./types";
-
-export const authApi = {
-  signup: (email: string, password: string, displayName?: string) =>
-    apiFetch<AuthTokens>("/auth/signup", { method: "POST", auth: false, body: { email, password, displayName } }),
-  login: (email: string, password: string) =>
-    apiFetch<AuthTokens>("/auth/login", { method: "POST", auth: false, body: { email, password } }),
-  logout: () => apiFetch<void>("/auth/logout", { method: "POST" }),
-  requestPasswordReset: (email: string) =>
-    apiFetch<void>("/auth/password-reset/request", { method: "POST", auth: false, body: { email } }),
-  confirmPasswordReset: (token: string, newPassword: string) =>
-    apiFetch<void>("/auth/password-reset/confirm", { method: "POST", auth: false, body: { token, newPassword } }),
-};
 
 export const sitesApi = {
   list: () => apiFetch<Site[]>("/sites"),
@@ -74,10 +61,12 @@ export const tagsApi = {
 
 export const readingApi = {
   getPosition: (novelId: string) => apiFetch<ReadingPosition>(`/reading/positions/${novelId}`),
-  putPosition: (novelId: string, chapterId: string, scrollPosition: number) =>
+  // clientUpdatedAt: 端末でその位置を読んだ時刻(ISO 8601)。サーバーは保存済みの位置より古ければ無視する
+  // (オフライン中に溜めた古い位置が、別の端末で読み進めた新しい位置を上書きしないように)
+  putPosition: (novelId: string, chapterId: string, scrollPosition: number, clientUpdatedAt: string) =>
     apiFetch<ReadingPosition>(`/reading/positions/${novelId}`, {
       method: "PUT",
-      body: { chapterId, scrollPosition },
+      body: { chapterId, scrollPosition, clientUpdatedAt },
     }),
   recordHistory: (chapterId: string, readAt: string, durationSeconds: number) =>
     apiFetch<void>("/reading/history", { method: "POST", body: { chapterId, readAt, durationSeconds } }),

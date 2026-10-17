@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { AppLink as Link } from "@/components/AppLink";
 import { Capacitor } from "@capacitor/core";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { pushApi } from "@/lib/api";
 
@@ -62,7 +61,6 @@ function SegButton({
 
 export default function SettingsPage() {
   const { settings, isLoading, update } = useSettings();
-  const { logout } = useAuth();
 
   return (
     <div className="flex flex-col gap-4 pt-6">
@@ -72,6 +70,7 @@ export default function SettingsPage() {
         <p className="px-4 text-sm text-muted">読み込み中...</p>
       ) : (
         <div className="flex flex-col">
+          <p className="px-4 pb-2 text-xs text-muted">この画面の設定はこの端末だけに保存されます（ほかの端末には反映されません）。</p>
           <p className="px-4 pb-1 pt-2 text-xs font-bold uppercase tracking-wide text-muted">読書</p>
 
           <Row label="ダークモード">
@@ -183,10 +182,6 @@ export default function SettingsPage() {
             使い方ガイド
           </Link>
 
-          <p className="px-4 pb-1 pt-6 text-xs font-bold uppercase tracking-wide text-muted">アカウント</p>
-          <button onClick={logout} className="px-4 py-3 text-left text-sm text-update">
-            ログアウト
-          </button>
         </div>
       )}
     </div>

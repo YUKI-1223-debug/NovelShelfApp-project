@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { CapacitorBridge } from "@/components/CapacitorBridge";
 import { PushNotifications } from "@/components/PushNotifications";
@@ -36,13 +36,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <ServiceWorkerRegister />
-          <CapacitorBridge />
-          <PushNotifications />
-          <OfflinePositionSync />
-          {children}
-        </AuthProvider>
+        <ConnectionBanner />
+        <ServiceWorkerRegister />
+        <CapacitorBridge />
+        <PushNotifications />
+        <OfflinePositionSync />
+        {children}
       </body>
     </html>
   );

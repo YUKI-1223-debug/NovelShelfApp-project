@@ -531,16 +531,17 @@ function ReaderPageContent() {
   const saveProgress = useCallback(() => {
     if (!scrollRef.current) return;
     const scrollPosition = computeScrollFraction();
+    const readAt = new Date();
     // ローカルキャッシュは送信の成否を待たずその場で更新する(オフラインでサーバー送信が
     // 後回しになっても、この端末での次回表示は常に最新のスクロール位置を即使えるように)。
-    putCachedPosition(novelId, { novelId, chapterId, scrollPosition, lastReadAt: new Date().toISOString() }).catch(
+    putCachedPosition(novelId, { novelId, chapterId, scrollPosition, lastReadAt: readAt.toISOString() }).catch(
       () => {}
     );
-    readingApi.putPosition(novelId, chapterId, scrollPosition).catch((err) => {
+    readingApi.putPosition(novelId, chapterId, scrollPosition, readAt.toISOString()).catch((err) => {
       // オフライン等でネットワーク自体が失敗した場合のみキューに積む。
       // ApiError（401など、サーバーが応答した上での失敗）は再試行しても直らないためキューに積まない。
       if (!(err instanceof ApiError)) {
-        queuePendingPosition(novelId, chapterId, scrollPosition).catch(() => {});
+        queuePendingPosition(novelId, chapterId, scrollPosition, readAt.getTime()).catch(() => {});
       }
     });
 
