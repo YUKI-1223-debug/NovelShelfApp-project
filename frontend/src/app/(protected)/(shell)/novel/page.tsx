@@ -1,5 +1,6 @@
 "use client";
 
+import { CollapsibleText } from "@/components/CollapsibleText";
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AppLink as Link } from "@/components/AppLink";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -286,7 +287,8 @@ function NovelDetailContent() {
         </div>
       </div>
 
-      {novel.synopsis && <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{novel.synopsis}</p>}
+      {/* 説明文が長いと「続きから読む」が画面の外に出るので、最初は4行までにして折りたたむ */}
+      {novel.synopsis && <CollapsibleText text={novel.synopsis} className="text-sm leading-relaxed text-foreground/90" />}
 
       <div className="flex flex-col gap-2">
         {continueChapterId ? (
