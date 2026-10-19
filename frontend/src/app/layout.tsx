@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { CapacitorBridge } from "@/components/CapacitorBridge";
 import { PushNotifications } from "@/components/PushNotifications";
 import { OfflinePositionSync } from "@/components/OfflinePositionSync";
@@ -37,7 +36,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className="min-h-full flex flex-col">
         <ConnectionBanner />
-        <ServiceWorkerRegister />
         <CapacitorBridge />
         <PushNotifications />
         <OfflinePositionSync />

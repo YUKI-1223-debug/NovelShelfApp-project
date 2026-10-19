@@ -5,15 +5,13 @@
 #
 # VPS 用の docker-compose.prod.yml との違い:
 #   - nginx / certbot を含まない（TLS 終端は Cloudflare エッジ。リバースプロキシは /srv/edge の共有 Caddy）
-#   - frontend / backend を Docker 外部ネットワーク "edge" にエイリアス付きで参加させ、共有 Caddy から
-#     novelshelf-backend:8080 / novelshelf-frontend:3000 で到達できるようにする
+#   - Web 版（frontend コンテナ）と novelshelf.jp の公開は 2026-10-19 に廃止（個人利用アプリ化 S2-10）。
+#     アプリは tailnet の https://minipc.tail0347f4.ts.net:8445 だけを使う
 #   - postgres はホストにポートを出さない。backend は 127.0.0.1:8020 だけに出す（tailscale serve :8445 用、2026-10〜）
 #
-# 前提: 事前に `docker network create edge` 済み（/srv/edge のスタックが作成する）。
 # 移設手順は docs/MIGRATION_to_minipc.md、ミニPC全体は WorkSpace/ミニPC-Linux移行手順.md を参照。
 #
 # 注意: `ports: !reset []` は Docker Compose 2.24 以降が必要。
-#       各サービスの `networks:` で `default` を必ず明示すること（省くと backend が postgres に繋がらない）。
 
 services:
   postgres:
@@ -23,7 +21,6 @@ services:
   backend:
     restart: unless-stopped
     # 127.0.0.1:8020 だけで待ち受け、`tailscale serve --https=8445` で tailnet 内にだけ出す(個人利用アプリ化 S2-1)。
-    # novelshelf.jp を閉じるまでは、共有 Caddy(edge ネットワーク)からの経路も残す
     ports: !override
       - "127.0.0.1:8020:8080"
     logging:
@@ -56,24 +53,3 @@ services:
       # 事前に `mkdir -p secrets` し、Firebase のサービスアカウント JSON を
       # secrets/firebase-service-account.json として置く（docs/FIREBASE_SETUP.md）。
       - ../secrets:/run/secrets:ro
-    networks:
-      default: {}
-      edge:
-        aliases:
-          - novelshelf-backend
-
-  frontend:
-    build:
-      args:
-        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN}/api/v1
-    restart: unless-stopped
-    ports: !reset []          # 共有 Caddy 経由でのみ到達可能
-    networks:
-      default: {}
-      edge:
-        aliases:
-          - novelshelf-frontend
-
-networks:
-  edge:
-    external: true
